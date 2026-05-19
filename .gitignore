@@ -1,0 +1,13 @@
+
+# Build output
+*.exe
+*.out
+
+# Test cache
+/tmp/
+/out/
+
+# IDE
+.idea/
+.vscode/
+*.swp

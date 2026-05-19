@@ -1,0 +1,32 @@
+VERSION             1
+NAME                "ci"
+BASE_IMAGE          "golang:1.25"
+
+INCLUDE
+    "../another_module/"
+    "../and_another_module/"
+
+INSTALL_DEPS:
+    CMD "npm install"
+    OUTPUT MODULES "./node_modules"
+
+BUILD:
+    INPUT INSTALL_DEPS MODULES "./node_modules"
+    CMD "npm build"
+
+TEST: 
+    INPUT INSTALL_DEPS MODULES "./node_modules"
+    OUTPUT RESULT "./test-result.xml"
+    CMD "npm test -o ./test-result.xml"
+
+DOCKER_BUILD:
+    DOCKERFILE "./test.Dockerfile"
+    OUTPUT DOCKERFILE DOCKERFILE
+
+BLACKDUCK_IMAGE_SCAN:
+    INPUT DOCKER_BUILD DOCKERFILE "/mnt/dockerfile.tar"
+    CMD "blackduck run ..."
+
+EXPORT:
+    INPUT DOCKER_BUILD DOCKERFILE
+    INPUT TEST RESULT

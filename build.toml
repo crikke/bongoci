@@ -1,0 +1,42 @@
+version = 1
+
+[module]
+name = "ci"
+image = "golang:1.25"
+
+
+[tasks.a_file]
+# the Image fs is not mounted as readonly, thats why gomodcache is writable
+cmd = """
+    echo \"foo\" > ./foo;
+    echo \"foo\" > /out/foo
+    """
+
+# this is mounted as readonly
+# cmd = "echo \"foo\" > ./foo"
+
+# cmd = "echo \"foo\" > /out/foo"
+
+
+[tasks.build]
+# cmd = "go build -o /out/ci ./cmd/ci/main.go"
+cmd = "ls -la ."
+inputs = [
+    { task = "a_file", path="/out/foo", dest="./foobar" },
+]
+
+[tasks.test]
+cmd = "go test ./..."
+
+[tasks.dockerfile]
+type = "docker"
+dockerfile = "test.Dockerfile"
+
+[outputs.binary]
+from = { task = "build", path="/out/ci"  }
+
+[outputs.foo]
+from = { task = "a_file", path="/out/foo"  }
+
+[outputs.Image]
+from = { task = "dockerfile", path="/out/test.Dockerfile.tar"}
