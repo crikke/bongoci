@@ -1,3 +1,6 @@
+# Binaries
+/main
+/ci
 
 # Build output
 *.exe
