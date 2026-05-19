@@ -1,36 +1,46 @@
 package manifest
 
-// Manifest is the parsed representation of build.toml.
+// Manifest is the parsed representation of a build.bongo file.
 type Manifest struct {
-	AbsPath      string // absolute path to the module directory
-	Name         string
-	Image        string
-	Dependencies []string // sibling module paths, resolved to absolute at parse time
-	Tasks        map[string]*Task
-	Outputs      map[string]Output
-	Env          map[string]string
+	AbsPath string
+	Version int
+	Module  Module
+	Tasks   map[string]*Task
 }
 
-// Task represents one build step.
+// Module holds module-level metadata.
+type Module struct {
+	Name      string
+	BaseImage string
+	Include   []string // dependency paths, resolved to absolute at parse time
+	Exports   []Export // task outputs to be written back to the host after the build
+}
+
+// Export references a named output from a task that should be
+// materialized on the host filesystem after the build completes.
+type Export struct {
+	TaskName   string
+	OutputName string
+}
+
+// Task is a single build step.
 type Task struct {
-	ID         string
 	Name       string
 	Cmd        string
-	Type       string // "exec" (default) or "docker"
-	Dockerfile string // docker tasks only
-	Inputs     []TaskInput
+	Dockerfile string
+	Inputs     []Input
+	Outputs    []Output
 }
 
-// TaskInput wires a path from an upstream task's /out scratch into this task's container.
-type TaskInput struct {
-	Task *Task
-	Path string // path within the upstream task's /out scratch (e.g. "/packages")
-	Dest string // mount destination in this container (e.g. "/packages")
+// Input wires a named output from an upstream task into this task.
+type Input struct {
+	Task       *Task
+	OutputName string
+	Dest       string // mount destination inside the container
 }
 
-// Output declares what gets copied from a task's /out scratch back to the host.
-// Outputs are written to --output-dir/{taskname}/{file}
+// Output is a named artifact produced by a task.
 type Output struct {
-	TaskName string
-	SrcPath  string // path within task's /out scratch (e.g. "/payments-service")
+	Name string
+	Path string
 }
