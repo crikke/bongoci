@@ -178,3 +178,14 @@ func TestTokenize_empty(t *testing.T) {
 		t.Errorf("empty input: got %v", tokens)
 	}
 }
+
+func TestTokenize_string_with_double_backslash(t *testing.T) {
+	// "path\\" should lex as the string value: path\
+	tokens, err := Tokenize(`CMD "path\\"` + "\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tokens) < 2 || tokens[1].Type != STRING || tokens[1].Value != `path\` {
+		t.Errorf("double-backslash string: got %+v", tokens)
+	}
+}

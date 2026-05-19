@@ -40,6 +40,7 @@ type Token struct {
 // Blank lines and # comments are skipped.
 // Indentation changes emit synthetic INDENT/DEDENT tokens.
 func Tokenize(src string) ([]Token, error) {
+	src = strings.ReplaceAll(src, "\r\n", "\n")
 	var out []Token
 	lines := strings.Split(src, "\n")
 	stack := []int{0} // indentation level stack
@@ -101,9 +102,14 @@ func Tokenize(src string) ([]Token, error) {
 				col++
 			case ch == '"':
 				j := i + 1
+				escaped := false
 				for j < len(rest) {
-					if rest[j] == '"' && (j == 0 || rest[j-1] != '\\') {
+					if rest[j] == '\\' && !escaped {
+						escaped = true
+					} else if rest[j] == '"' && !escaped {
 						break
+					} else {
+						escaped = false
 					}
 					j++
 				}
@@ -112,6 +118,7 @@ func Tokenize(src string) ([]Token, error) {
 				}
 				val := rest[i+1 : j]
 				val = strings.ReplaceAll(val, `\"`, `"`)
+				val = strings.ReplaceAll(val, `\\`, `\`)
 				out = append(out, Token{Type: STRING, Value: val, Line: lineNo, Col: col + 1})
 				advance := j - i + 1
 				col += advance
