@@ -10,11 +10,15 @@ import (
 
 // Parse reads build.bongo at filePath and returns a Manifest.
 func Parse(filePath string) (*Manifest, error) {
-	data, err := os.ReadFile(filePath)
+	abs, err := filepath.Abs(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", filePath, err)
+		return nil, fmt.Errorf("resolve path %s: %w", filePath, err)
 	}
-	return parser.Parse(string(data), filepath.Dir(filePath))
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", abs, err)
+	}
+	return parser.Parse(string(data), filepath.Dir(abs))
 }
 
 // ParseContent parses .bongo source with dir as the module's absolute path.
