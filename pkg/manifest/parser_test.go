@@ -294,6 +294,25 @@ MODULE:
 	}
 }
 
+func TestParseContent_duplicate_task(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "first"
+
+BUILD:
+    CMD "second"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for duplicate task name, got nil")
+	}
+}
+
 // ensure ParseContent error message contains line info
 func TestParseContent_error_has_line(t *testing.T) {
 	const src = `

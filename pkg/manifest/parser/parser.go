@@ -97,6 +97,9 @@ func (p *parseState) parseFile(dir string) (*types.Manifest, error) {
 		if err != nil {
 			return nil, err
 		}
+		if _, exists := taskMap[task.Name]; exists {
+			return nil, fmt.Errorf("duplicate task name %q", task.Name)
+		}
 		taskMap[task.Name] = task
 		rawInputsMap[task.Name] = raws
 	}
