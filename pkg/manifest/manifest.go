@@ -1,46 +1,13 @@
 package manifest
 
-// Manifest is the parsed representation of a build.bongo file.
-type Manifest struct {
-	AbsPath string
-	Version int
-	Module  Module
-	Tasks   map[string]*Task
-}
+import "github.com/crikke/ci/pkg/manifest/types"
 
-// Module holds module-level metadata.
-type Module struct {
-	Name      string
-	BaseImage string
-	Include   []string // dependency paths, resolved to absolute at parse time
-	Exports   []Export // task outputs to be written back to the host after the build
-}
+// Type aliases so callers continue to use manifest.Manifest, manifest.Task, etc.
+// while pkg/manifest/parser can import pkg/manifest/types without a cycle.
 
-// Export references a named output from a task that should be
-// materialized on the host filesystem after the build completes.
-type Export struct {
-	TaskName   string
-	OutputName string
-}
-
-// Task is a single build step.
-type Task struct {
-	Name       string
-	Cmd        string
-	Dockerfile string
-	Inputs     []Input
-	Outputs    []Output
-}
-
-// Input wires a named output from an upstream task into this task.
-type Input struct {
-	Task       *Task
-	OutputName string
-	Dest       string // mount destination inside the container
-}
-
-// Output is a named artifact produced by a task.
-type Output struct {
-	Name string
-	Path string
-}
+type Manifest = types.Manifest
+type Module = types.Module
+type Export = types.Export
+type Task = types.Task
+type Input = types.Input
+type Output = types.Output
