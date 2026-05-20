@@ -2,30 +2,31 @@ package manifest_test
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/crikke/ci/pkg/manifest"
 )
 
 func TestParseContent_basic(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "test-module"
-image = "ubuntu:24.04"
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "test-module"
+    BASE_IMAGE = "ubuntu:24.04"
 
-[tasks.build]
-cmd = "make build"
+BUILD:
+    CMD "make build"
 `
-	m, err := manifest.ParseContent(toml, "/some/dir")
+	m, err := manifest.ParseContent(src, "/some/dir")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if m.Name != "test-module" {
-		t.Errorf("Name: got %q, want %q", m.Name, "test-module")
+	if m.Module.Name != "test-module" {
+		t.Errorf("Name: got %q, want %q", m.Module.Name, "test-module")
 	}
-	if m.Image != "ubuntu:24.04" {
-		t.Errorf("Image: got %q, want %q", m.Image, "ubuntu:24.04")
+	if m.Module.BaseImage != "ubuntu:24.04" {
+		t.Errorf("BaseImage: got %q, want %q", m.Module.BaseImage, "ubuntu:24.04")
 	}
 	if m.AbsPath != "/some/dir" {
 		t.Errorf("AbsPath: got %q, want %q", m.AbsPath, "/some/dir")
@@ -33,219 +34,308 @@ cmd = "make build"
 	if len(m.Tasks) != 1 {
 		t.Fatalf("Tasks: got %d, want 1", len(m.Tasks))
 	}
-	task, ok := m.Tasks["build"]
+	task, ok := m.Tasks["BUILD"]
 	if !ok {
-		t.Fatal("task 'build' not found")
+		t.Fatal("task 'BUILD' not found")
 	}
-	if task.Name != "build" {
-		t.Errorf("task.Name: got %q, want %q", task.Name, "build")
-	}
-	if task.Cmd != "make build" {
-		t.Errorf("task.Cmd: got %q, want %q", task.Cmd, "make build")
-	}
-	if task.Type != "exec" {
-		t.Errorf("task.Type: got %q, want %q (default)", task.Type, "exec")
+	if *task.Cmd != "make build" {
+		t.Errorf("task.Cmd: got %q, want %q", *task.Cmd, "make build")
 	}
 }
 
-func TestParseContent_inputs(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
+func TestParseContent_inputs_outputs(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
 
-[tasks.restore]
-cmd = "dotnet restore"
+RESTORE:
+    CMD "dotnet restore"
+    OUTPUT "PACKAGES" "./packages"
 
-[tasks.compile]
-cmd = "dotnet publish"
-inputs = [
-    { task = "restore", path = "/packages", dest = "/packages" }
-]
+COMPILE:
+    INPUT RESTORE PACKAGES "/packages"
+    CMD "dotnet publish"
 `
-	m, err := manifest.ParseContent(toml, "/some/dir")
+	m, err := manifest.ParseContent(src, "/some/dir")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	compile := m.Tasks["compile"]
+	restore, ok := m.Tasks["RESTORE"]
+	if !ok {
+		t.Fatal("task 'RESTORE' not found")
+	}
+	if len(restore.Outputs) != 1 || restore.Outputs[0].Name != "PACKAGES" || restore.Outputs[0].Path != "./packages" {
+		t.Errorf("RESTORE.Outputs: got %+v", restore.Outputs)
+	}
+	compile, ok := m.Tasks["COMPILE"]
+	if !ok {
+		t.Fatal("task 'COMPILE' not found")
+	}
 	if len(compile.Inputs) != 1 {
-		t.Fatalf("compile.Inputs: got %d, want 1", len(compile.Inputs))
+		t.Fatalf("COMPILE.Inputs: got %d, want 1", len(compile.Inputs))
 	}
 	inp := compile.Inputs[0]
-	if inp.Task.Name != "restore" {
-		t.Errorf("inp.Task.Name: got %q, want %q", inp.Task.Name, "restore")
+	if inp.Task.Name != "RESTORE" {
+		t.Errorf("inp.Task.Name: got %q, want %q", inp.Task.Name, "RESTORE")
 	}
-	if inp.Path != "/packages" {
-		t.Errorf("inp.Path: got %q, want %q", inp.Path, "/packages")
+	if inp.OutputName != "PACKAGES" {
+		t.Errorf("inp.OutputName: got %q, want %q", inp.OutputName, "PACKAGES")
 	}
 	if inp.Dest != "/packages" {
 		t.Errorf("inp.Dest: got %q, want %q", inp.Dest, "/packages")
 	}
 }
 
-func TestParseContent_missing_name(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-image = "ubuntu:24.04"
+func TestParseContent_include(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    INCLUDE
+        "../other"
 `
-	_, err := manifest.ParseContent(toml, "/some/dir")
-	if err == nil {
-		t.Fatal("expected error for missing module.name, got nil")
+	m, err := manifest.ParseContent(src, "/home/user/module")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(m.Module.Include) != 1 {
+		t.Fatalf("Include: got %d, want 1", len(m.Module.Include))
+	}
+	want := filepath.Clean("/home/user/other")
+	if m.Module.Include[0] != want {
+		t.Errorf("Include[0]: got %q, want %q", m.Module.Include[0], want)
 	}
 }
 
-func TestParseContent_missing_image(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
+func TestParseContent_export(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    EXPORT:
+        INPUT BUILD ARTIFACT
+
+BUILD:
+    CMD "make"
+    OUTPUT "ARTIFACT" "./bin/app"
 `
-	_, err := manifest.ParseContent(toml, "/some/dir")
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(m.Module.Exports) != 1 {
+		t.Fatalf("Exports: got %d, want 1", len(m.Module.Exports))
+	}
+	exp := m.Module.Exports[0]
+	if exp.TaskName != "BUILD" || exp.OutputName != "ARTIFACT" {
+		t.Errorf("Export: got %+v", exp)
+	}
+}
+
+func TestParseContent_dockerfile_task(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD_IMAGE:
+    DOCKERFILE "./Dockerfile" "/out/image.tar"
+    OUTPUT "IMAGE" "/out/image.tar"
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	task, ok := m.Tasks["BUILD_IMAGE"]
+	if !ok {
+		t.Fatal("task 'BUILD_IMAGE' not found")
+	}
+	if task.Dockerfile == nil || *task.Dockerfile != "./Dockerfile" {
+		t.Errorf("Dockerfile: got %q, want %q", *task.Dockerfile, "./Dockerfile")
+	}
+	if task.DockerfileOutput == nil || *task.DockerfileOutput != "/out/image.tar" {
+		t.Errorf("DockerfileOutput: got %v, want %q", task.DockerfileOutput, "/out/image.tar")
+	}
+	if len(task.Outputs) != 1 || task.Outputs[0].Name != "IMAGE" || task.Outputs[0].Path != "/out/image.tar" {
+		t.Errorf("Outputs: got %+v", task.Outputs)
+	}
+}
+
+func TestParseContent_missing_name(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    BASE_IMAGE = "ubuntu:24.04"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
 	if err == nil {
-		t.Fatal("expected error for missing module.image, got nil")
+		t.Fatal("expected error for missing MODULE.NAME, got nil")
+	}
+}
+
+func TestParseContent_missing_base_image(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for missing MODULE.BASE_IMAGE, got nil")
 	}
 }
 
 func TestParseContent_unknown_input_task(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
 
-[tasks.compile]
-cmd = "compile"
-inputs = [
-    { task = "nonexistent", path = "/out", dest = "/out" }
-]
+COMPILE:
+    INPUT NONEXISTENT PACKAGES "/packages"
+    CMD "compile"
 `
-	_, err := manifest.ParseContent(toml, "/some/dir")
+	_, err := manifest.ParseContent(src, "/some/dir")
 	if err == nil {
 		t.Fatal("expected error for unknown input task, got nil")
 	}
 }
 
 func TestParseContent_cycle(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
 
-[tasks.a]
-cmd = "a"
-inputs = [{ task = "b", path = "/out", dest = "/out" }]
+A:
+    OUTPUT "OUT" "./out"
+    INPUT B OUT "/out"
+    CMD "a"
 
-[tasks.b]
-cmd = "b"
-inputs = [{ task = "a", path = "/out", dest = "/out" }]
+B:
+    OUTPUT "OUT" "./out"
+    INPUT A OUT "/out"
+    CMD "b"
 `
-	_, err := manifest.ParseContent(toml, "/some/dir")
+	_, err := manifest.ParseContent(src, "/some/dir")
 	if err == nil {
 		t.Fatal("expected error for cycle, got nil")
 	}
 }
 
-func TestParseContent_dependencies_absolute(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
-dependencies = ["../other"]
+func TestParseContent_unknown_export_task(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    EXPORT:
+        INPUT NONEXISTENT ARTIFACT
+
+BUILD:
+    CMD "make"
 `
-	m, err := manifest.ParseContent(toml, "/home/user/module")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(m.Dependencies) != 1 {
-		t.Fatalf("Dependencies: got %d, want 1", len(m.Dependencies))
-	}
-	want := filepath.Clean("/home/user/other")
-	if m.Dependencies[0] != want {
-		t.Errorf("dep path: got %q, want %q", m.Dependencies[0], want)
-	}
-}
-
-func TestParseContent_outputs(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
-
-[tasks.compile]
-cmd = "compile"
-
-[outputs.binary]
-dest = "./out/binary"
-[outputs.binary.from]
-task = "compile"
-path = "/binary"
-`
-	m, err := manifest.ParseContent(toml, "/some/dir")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	out, ok := m.Outputs["binary"]
-	if !ok {
-		t.Fatal("output 'binary' not found")
-	}
-	if out.TaskName != "compile" {
-		t.Errorf("out.TaskName: got %q, want %q", out.TaskName, "compile")
-	}
-	if out.SrcPath != "/binary" {
-		t.Errorf("out.SrcPath: got %q, want %q", out.SrcPath, "/binary")
-	}
-}
-
-func TestParseContent_docker_task(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
-
-[tasks.build-image]
-type = "docker"
-dockerfile = "Dockerfile"
-`
-	m, err := manifest.ParseContent(toml, "/some/dir")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	task, ok := m.Tasks["build-image"]
-	if !ok {
-		t.Fatal("task 'build-image' not found")
-	}
-	if task.Type != "docker" {
-		t.Errorf("task.Type: got %q, want %q", task.Type, "docker")
-	}
-	if task.Dockerfile != "Dockerfile" {
-		t.Errorf("task.Dockerfile: got %q, want %q", task.Dockerfile, "Dockerfile")
-	}
-}
-
-func TestParseContent_unknown_output_task(t *testing.T) {
-	const toml = `
-version = 1
-[module]
-name = "m"
-image = "ubuntu:24.04"
-
-[tasks.compile]
-cmd = "compile"
-
-[outputs.bin]
-dest = "./out/bin"
-[outputs.bin.from]
-task = "nonexistent"
-path = "/bin"
-`
-	_, err := manifest.ParseContent(toml, "/some/dir")
+	_, err := manifest.ParseContent(src, "/some/dir")
 	if err == nil {
-		t.Fatal("expected error for unknown output task, got nil")
+		t.Fatal("expected error for unknown export task, got nil")
 	}
+}
+
+func TestParseContent_unknown_export_output(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    EXPORT:
+        INPUT BUILD NONEXISTENT
+
+BUILD:
+    CMD "make"
+    OUTPUT "ARTIFACT" "./bin"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for unknown export output name, got nil")
+	}
+}
+
+func TestParseContent_comment_ignored(t *testing.T) {
+	const src = `
+# top-level comment
+BONGOVER = 1
+MODULE:
+    NAME = "m" # inline comment
+    BASE_IMAGE = "ubuntu:24.04"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParseContent_version(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if m.Version != 1 {
+		t.Errorf("Version: got %d, want 1", m.Version)
+	}
+}
+
+func TestParseContent_duplicate_task(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "first"
+
+BUILD:
+    CMD "second"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for duplicate task name, got nil")
+	}
+}
+
+// ensure ParseContent error message contains line info
+func TestParseContent_error_has_line(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    BADKEYWORD "x"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected parse error, got nil")
+	}
+	if !strings.Contains(err.Error(), ":") {
+		t.Errorf("error message has no line info: %v", err)
+	}
+}
+
+func toPtr(str string) *string {
+	return &str
 }

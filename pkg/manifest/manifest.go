@@ -1,36 +1,13 @@
 package manifest
 
-// Manifest is the parsed representation of build.toml.
-type Manifest struct {
-	AbsPath      string // absolute path to the module directory
-	Name         string
-	Image        string
-	Dependencies []string // sibling module paths, resolved to absolute at parse time
-	Tasks        map[string]*Task
-	Outputs      map[string]Output
-	Env          map[string]string
-}
+import "github.com/crikke/ci/pkg/manifest/types"
 
-// Task represents one build step.
-type Task struct {
-	ID         string
-	Name       string
-	Cmd        string
-	Type       string // "exec" (default) or "docker"
-	Dockerfile string // docker tasks only
-	Inputs     []TaskInput
-}
+// Type aliases so callers continue to use manifest.Manifest, manifest.Task, etc.
+// while pkg/manifest/parser can import pkg/manifest/types without a cycle.
 
-// TaskInput wires a path from an upstream task's /out scratch into this task's container.
-type TaskInput struct {
-	Task *Task
-	Path string // path within the upstream task's /out scratch (e.g. "/packages")
-	Dest string // mount destination in this container (e.g. "/packages")
-}
-
-// Output declares what gets copied from a task's /out scratch back to the host.
-// Outputs are written to --output-dir/{taskname}/{file}
-type Output struct {
-	TaskName string
-	SrcPath  string // path within task's /out scratch (e.g. "/payments-service")
-}
+type Manifest = types.Manifest
+type Module = types.Module
+type Export = types.Export
+type Task = types.Task
+type Input = types.Input
+type Output = types.Output

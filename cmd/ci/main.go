@@ -18,7 +18,7 @@ import (
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
+		fmt.Fprintln(os.Stderr, "in main error:", err)
 		os.Exit(1)
 	}
 }
@@ -29,7 +29,7 @@ func run(args []string) error {
 	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
 	useHostBuildkitDaemon := fs.Bool("use-host-buildkit-daemon", false, "connect to a buildkitd already running on the host instead of starting one")
 	if err := fs.Parse(args); err != nil {
-		return err
+		return fmt.Errorf("fs parsing error: %w", err)
 	}
 	args = fs.Args()
 
@@ -91,10 +91,20 @@ func run(args []string) error {
 			return fmt.Errorf("compile %q: %w", taskName, err)
 		}
 
-		var taskOutputs []manifest.Output
-		for _, out := range m.Outputs {
-			if out.TaskName == taskName {
-				taskOutputs = append(taskOutputs, out)
+		var taskOutputs []runner.ExportedOutput
+		task := m.Tasks[taskName]
+		for _, exp := range m.Module.Exports {
+			if exp.TaskName != taskName {
+				continue
+			}
+			for _, out := range task.Outputs {
+				if out.Name == exp.OutputName {
+					taskOutputs = append(taskOutputs, runner.ExportedOutput{
+						SrcPath:  filepath.Join("out", taskName, out.Name, filepath.Base(out.Path)),
+						DestPath: filepath.Join("out", taskName, out.Name, filepath.Base(out.Path)),
+					})
+					break
+				}
 			}
 		}
 
@@ -108,7 +118,7 @@ func run(args []string) error {
 
 func findBuildToml(dir string) (string, bool) {
 	for {
-		candidate := filepath.Join(dir, "build.toml")
+		candidate := filepath.Join(dir, "build.bongo")
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, true
 		}

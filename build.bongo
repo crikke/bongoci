@@ -1,32 +1,29 @@
-VERSION             1
-NAME                "ci"
-BASE_IMAGE          "golang:1.25"
-
-INCLUDE
-    "../another_module/"
-    "../and_another_module/"
+# this is a comment
+BONGOVER = 1
+MODULE:
+    NAME = "ci"
+    BASE_IMAGE = "golang:1.25"
+    EXPORT:
+        INPUT DOCKER_BUILD TARBALL
+        INPUT TEST RESULT
 
 INSTALL_DEPS:
     CMD "npm install"
-    OUTPUT MODULES "./node_modules"
+    OUTPUT "MODULES" "./node_modules"
 
 BUILD:
     INPUT INSTALL_DEPS MODULES "./node_modules"
     CMD "npm build"
 
-TEST: 
+TEST:
     INPUT INSTALL_DEPS MODULES "./node_modules"
-    OUTPUT RESULT "./test-result.xml"
+    OUTPUT "RESULT" "./test-result.xml"
     CMD "npm test -o ./test-result.xml"
 
 DOCKER_BUILD:
-    DOCKERFILE "./test.Dockerfile"
-    OUTPUT DOCKERFILE DOCKERFILE
+    DOCKERFILE "./test.Dockerfile" "./image.tar"
+    OUTPUT "TARBALL" "./image.tar"
 
 BLACKDUCK_IMAGE_SCAN:
-    INPUT DOCKER_BUILD DOCKERFILE "/mnt/dockerfile.tar"
+    INPUT DOCKER_BUILD TARBALL "/mnt/dockerfile.tar"
     CMD "blackduck run ..."
-
-EXPORT:
-    INPUT DOCKER_BUILD DOCKERFILE
-    INPUT TEST RESULT

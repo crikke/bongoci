@@ -8,23 +8,21 @@ import (
 	"github.com/crikke/ci/pkg/manifest"
 )
 
+func strPtr(s string) *string { return &s }
+
 func makeRestore() *manifest.Task {
 	return &manifest.Task{
-		ID:   "restore",
 		Name: "restore",
-		Cmd:  "dotnet restore",
-		Type: "exec",
+		Cmd:  strPtr("dotnet restore"),
 	}
 }
 
 func makeCompile(restore *manifest.Task) *manifest.Task {
 	return &manifest.Task{
-		ID:   "compile",
 		Name: "compile",
-		Cmd:  "dotnet publish",
-		Type: "exec",
-		Inputs: []manifest.TaskInput{
-			{Task: restore, Path: "/packages", Dest: "/packages"},
+		Cmd:  strPtr("dotnet publish"),
+		Inputs: []manifest.Input{
+			{Task: restore, OutputName: "packages", Dest: "/packages"},
 		},
 	}
 }
@@ -33,14 +31,14 @@ func testManifest() *manifest.Manifest {
 	r := makeRestore()
 	c := makeCompile(r)
 	return &manifest.Manifest{
-		Name:    "test",
-		Image:   "ubuntu:24.04",
 		AbsPath: "/test/module",
+		Module: manifest.Module{
+			BaseImage: "ubuntu:24.04",
+		},
 		Tasks: map[string]*manifest.Task{
 			"restore": r,
 			"compile": c,
 		},
-		Outputs: map[string]manifest.Output{},
 	}
 }
 
@@ -79,7 +77,7 @@ func TestCompile_task_with_inputs(t *testing.T) {
 
 func TestCompile_local_dirs_includes_deps(t *testing.T) {
 	m := testManifest()
-	m.Dependencies = []string{"/other/module"}
+	m.Module.Include = []string{"/other/module"}
 	result, err := compiler.Compile(m, "restore")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -102,23 +100,22 @@ func TestCompile_local_dirs_includes_deps(t *testing.T) {
 func TestCompile_docker_task(t *testing.T) {
 	r := makeRestore()
 	dockerTask := &manifest.Task{
-		ID:         "build-image",
-		Name:       "build-image",
-		Type:       "docker",
-		Dockerfile: "Dockerfile",
-		Inputs: []manifest.TaskInput{
-			{Task: r, Path: "/out", Dest: "/out"},
+		Name:             "build-image",
+		Dockerfile:       strPtr("Dockerfile"),
+		DockerfileOutput: strPtr("/out/image.tar"),
+		Inputs: []manifest.Input{
+			{Task: r, OutputName: "image", Dest: "/out"},
 		},
 	}
 	m := &manifest.Manifest{
-		Name:    "test",
-		Image:   "ubuntu:24.04",
 		AbsPath: "/test/module",
+		Module: manifest.Module{
+			BaseImage: "ubuntu:24.04",
+		},
 		Tasks: map[string]*manifest.Task{
 			"restore":     r,
 			"build-image": dockerTask,
 		},
-		Outputs: map[string]manifest.Output{},
 	}
 
 	result, err := compiler.Compile(m, "build-image")
