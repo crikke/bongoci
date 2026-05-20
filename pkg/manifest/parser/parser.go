@@ -295,38 +295,36 @@ func (p *parseState) parseTask() (*types.Task, []rawInput, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			task.Cmd = tok.Value
+			task.Cmd = toPtr(tok.Value)
 			if _, err := p.expect(NEWLINE); err != nil {
 				return nil, nil, err
 			}
 		case "DOCKERFILE":
 			p.consume()
-			tok, err := p.expect(STRING)
+			pathTok, err := p.expect(STRING)
 			if err != nil {
 				return nil, nil, err
 			}
-			task.Dockerfile = tok.Value
+			task.Dockerfile = toPtr(pathTok.Value)
+			outTok, err := p.expect(STRING)
+			if err != nil {
+				return nil, nil, err
+			}
+			task.DockerfileOutput = toPtr(outTok.Value)
 			if _, err := p.expect(NEWLINE); err != nil {
 				return nil, nil, err
 			}
 		case "OUTPUT":
 			p.consume()
-			outName, err := p.expect(IDENT)
+			outName, err := p.expect(STRING)
 			if err != nil {
 				return nil, nil, err
 			}
-			// path is STRING or bare IDENT (e.g. OUTPUT DOCKERFILE DOCKERFILE)
-			var path string
-			switch p.peek().Type {
-			case STRING:
-				path = p.consume().Value
-			case IDENT:
-				path = p.consume().Value
-			default:
-				tok := p.peek()
-				return nil, nil, p.errorf(tok, "expected output path (string or identifier), got %s", tok.Type)
+			outPath, err := p.expect(STRING)
+			if err != nil {
+				return nil, nil, err
 			}
-			task.Outputs = append(task.Outputs, types.Output{Name: outName.Value, Path: path})
+			task.Outputs = append(task.Outputs, types.Output{Name: outName.Value, Path: outPath.Value})
 			if _, err := p.expect(NEWLINE); err != nil {
 				return nil, nil, err
 			}
@@ -360,6 +358,9 @@ func (p *parseState) parseTask() (*types.Task, []rawInput, error) {
 	return task, raws, nil
 }
 
+func toPtr(str string) *string {
+	return &str
+}
 func checkCycles(tasks map[string]*types.Task) error {
 	visited := make(map[string]bool)
 	inStack := make(map[string]bool)

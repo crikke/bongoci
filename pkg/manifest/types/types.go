@@ -28,11 +28,12 @@ type Export struct {
 
 // Task is a single build step.
 type Task struct {
-	Name       string
-	Cmd        string
-	Dockerfile string
-	Inputs     []Input
-	Outputs    []Output
+	Name             string
+	Cmd              *string
+	Dockerfile       *string
+	DockerfileOutput *string
+	Inputs           []Input
+	Outputs          []Output
 }
 
 // Input wires a named output from an upstream task into this task.

@@ -38,8 +38,8 @@ BUILD:
 	if !ok {
 		t.Fatal("task 'BUILD' not found")
 	}
-	if task.Cmd != "make build" {
-		t.Errorf("task.Cmd: got %q, want %q", task.Cmd, "make build")
+	if *task.Cmd != "make build" {
+		t.Errorf("task.Cmd: got %q, want %q", *task.Cmd, "make build")
 	}
 }
 
@@ -52,7 +52,7 @@ MODULE:
 
 RESTORE:
     CMD "dotnet restore"
-    OUTPUT PACKAGES "./packages"
+    OUTPUT "PACKAGES" "./packages"
 
 COMPILE:
     INPUT RESTORE PACKAGES "/packages"
@@ -121,7 +121,7 @@ MODULE:
 
 BUILD:
     CMD "make"
-    OUTPUT ARTIFACT "./bin/app"
+    OUTPUT "ARTIFACT" "./bin/app"
 `
 	m, err := manifest.ParseContent(src, "/some/dir")
 	if err != nil {
@@ -144,8 +144,8 @@ MODULE:
     BASE_IMAGE = "ubuntu:24.04"
 
 BUILD_IMAGE:
-    DOCKERFILE "./Dockerfile"
-    OUTPUT IMAGE IMAGE
+    DOCKERFILE "./Dockerfile" "/out/image.tar"
+    OUTPUT "IMAGE" "/out/image.tar"
 `
 	m, err := manifest.ParseContent(src, "/some/dir")
 	if err != nil {
@@ -155,10 +155,13 @@ BUILD_IMAGE:
 	if !ok {
 		t.Fatal("task 'BUILD_IMAGE' not found")
 	}
-	if task.Dockerfile != "./Dockerfile" {
-		t.Errorf("Dockerfile: got %q, want %q", task.Dockerfile, "./Dockerfile")
+	if task.Dockerfile == nil || *task.Dockerfile != "./Dockerfile" {
+		t.Errorf("Dockerfile: got %q, want %q", *task.Dockerfile, "./Dockerfile")
 	}
-	if len(task.Outputs) != 1 || task.Outputs[0].Name != "IMAGE" {
+	if task.DockerfileOutput == nil || *task.DockerfileOutput != "/out/image.tar" {
+		t.Errorf("DockerfileOutput: got %v, want %q", task.DockerfileOutput, "/out/image.tar")
+	}
+	if len(task.Outputs) != 1 || task.Outputs[0].Name != "IMAGE" || task.Outputs[0].Path != "/out/image.tar" {
 		t.Errorf("Outputs: got %+v", task.Outputs)
 	}
 }
@@ -212,12 +215,12 @@ MODULE:
     BASE_IMAGE = "ubuntu:24.04"
 
 A:
-    OUTPUT OUT "./out"
+    OUTPUT "OUT" "./out"
     INPUT B OUT "/out"
     CMD "a"
 
 B:
-    OUTPUT OUT "./out"
+    OUTPUT "OUT" "./out"
     INPUT A OUT "/out"
     CMD "b"
 `
@@ -256,7 +259,7 @@ MODULE:
 
 BUILD:
     CMD "make"
-    OUTPUT ARTIFACT "./bin"
+    OUTPUT "ARTIFACT" "./bin"
 `
 	_, err := manifest.ParseContent(src, "/some/dir")
 	if err == nil {
@@ -331,4 +334,8 @@ BUILD:
 	if !strings.Contains(err.Error(), ":") {
 		t.Errorf("error message has no line info: %v", err)
 	}
+}
+
+func toPtr(str string) *string {
+	return &str
 }

@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 
 	"github.com/crikke/ci/pkg/compiler"
-	"github.com/crikke/ci/pkg/manifest"
 	bkclient "github.com/moby/buildkit/client"
 	gateway "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/util/progress/progressui"
@@ -39,7 +38,7 @@ func localMounts(dirs map[string]string) (map[string]fsutil.FS, error) {
 }
 
 // Run solves the compiled LLB graph via buildkitd and copies declared outputs to the host.
-func Run(ctx context.Context, host string, result *compiler.Result, outputs []manifest.Output) error {
+func Run(ctx context.Context, host string, result *compiler.Result, outputs []ExportedOutput) error {
 	c, err := bkclient.New(ctx, host)
 	if err != nil {
 		return fmt.Errorf("connect to buildkit at %q: %w\nhint: set BUILDKIT_HOST or ensure buildkitd is running", host, err)
@@ -50,7 +49,7 @@ func Run(ctx context.Context, host string, result *compiler.Result, outputs []ma
 	return solveExec(ctx, c, result, outputs)
 }
 
-func solveExec(ctx context.Context, c *bkclient.Client, result *compiler.Result, outputs []manifest.Output) error {
+func solveExec(ctx context.Context, c *bkclient.Client, result *compiler.Result, outputs []ExportedOutput) error {
 	tmpDir, err := os.MkdirTemp("", "ci-export-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
@@ -102,7 +101,7 @@ func solve(ctx context.Context, c *bkclient.Client, result *compiler.Result, sol
 
 // CopyOutputs copies each declared output from exportDir to its host DestPath.
 // Exported for use in tests.
-func CopyOutputs(exportDir string, outputs []manifest.Output) error {
+func CopyOutputs(exportDir string, outputs []ExportedOutput) error {
 
 	var log func(dir string)
 	log = func(dir string) {
@@ -120,18 +119,13 @@ func CopyOutputs(exportDir string, outputs []manifest.Output) error {
 	log(exportDir)
 
 	for _, out := range outputs {
-
-		filename := path.Base(out.SrcPath)
-
-		destDir := filepath.Join(out.TaskName, filename)
-		srcDir := filepath.Join(exportDir, "out", destDir)
-		slog.Debug("copying output", "task", out.TaskName, "filename", filename)
-		// was perm 0o755
-		if err := os.MkdirAll(filepath.Dir(destDir), 0o755); err != nil {
-			return fmt.Errorf("mkdir %q: %w", filepath.Dir(destDir), err)
+		srcDir := filepath.Join(exportDir, out.SrcPath)
+		slog.Debug("copying output", "src", srcDir, "dest", out.DestPath)
+		if err := os.MkdirAll(filepath.Dir(out.DestPath), 0o755); err != nil {
+			return fmt.Errorf("mkdir %q: %w", filepath.Dir(out.DestPath), err)
 		}
-		if err := copyPath(srcDir, destDir); err != nil {
-			return fmt.Errorf("copy %q -> %q: %w", srcDir, destDir, err)
+		if err := copyPath(srcDir, out.DestPath); err != nil {
+			return fmt.Errorf("copy %q -> %q: %w", srcDir, out.DestPath, err)
 		}
 	}
 	return nil
