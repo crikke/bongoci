@@ -252,6 +252,7 @@ github.com/sirupsen/logrus
 # github.com/tliron/glsp v0.2.2
 ## explicit; go 1.21
 github.com/tliron/glsp
+github.com/tliron/glsp/protocol_3_16
 # github.com/tonistiigi/fsutil v0.0.0-20251211185533-a2aa163d723f
 ## explicit; go 1.21
 github.com/tonistiigi/fsutil
