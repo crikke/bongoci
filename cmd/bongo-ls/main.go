@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -25,10 +26,13 @@ func runServer() {
 		Initialize:            initialize,
 		Initialized:           func(_ *glsp.Context, _ *protocol.InitializedParams) error { return nil },
 		Shutdown:              func(_ *glsp.Context) error { return nil },
+		Exit:                  func(_ *glsp.Context) error { os.Exit(0); return nil },
 		TextDocumentDidOpen:   textDocumentDidOpen,
 		TextDocumentDidChange: textDocumentDidChange,
 		TextDocumentHover:     textDocumentHover,
 	}
+
+	log.SetOutput(os.Stderr)
 
 	reader := bufio.NewReader(os.Stdin)
 	writer := os.Stdout
@@ -42,6 +46,7 @@ func runServer() {
 				if err == io.EOF {
 					return
 				}
+				log.Printf("bongo-ls: read error: %v", err)
 				return
 			}
 			line = strings.TrimRight(line, "\r\n")
@@ -56,15 +61,18 @@ func runServer() {
 
 		contentLengthStr, ok := headers["Content-Length"]
 		if !ok {
-			continue
+			log.Printf("bongo-ls: missing Content-Length header")
+			return
 		}
 		contentLength, err := strconv.Atoi(contentLengthStr)
 		if err != nil {
-			continue
+			log.Printf("bongo-ls: bad Content-Length %q: %v", contentLengthStr, err)
+			return
 		}
 
 		body := make([]byte, contentLength)
 		if _, err := io.ReadFull(reader, body); err != nil {
+			log.Printf("bongo-ls: body read error: %v", err)
 			return
 		}
 
@@ -76,6 +84,12 @@ func runServer() {
 			Params  json.RawMessage `json:"params"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
+			log.Printf("bongo-ls: json unmarshal error: %v", err)
+			// Best-effort: try to extract an id from the raw body to send a proper error response.
+			var idProbe struct{ ID json.RawMessage `json:"id"` }
+			if json.Unmarshal(body, &idProbe) == nil && idProbe.ID != nil && string(idProbe.ID) != "null" {
+				sendError(writer, idProbe.ID, -32700, "parse error")
+			}
 			continue
 		}
 
