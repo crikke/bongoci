@@ -26,3 +26,23 @@ func TestWithCacheOpt_withRef(t *testing.T) {
 		t.Errorf("Attrs[ref]: got %q, want %q", entry.Attrs["ref"], "myregistry/cache")
 	}
 }
+
+func TestWithCacheOpt_appendsToExisting(t *testing.T) {
+	existing := bkclient.CacheOptionsEntry{
+		Type:  "registry",
+		Attrs: map[string]string{"ref": "existing/cache"},
+	}
+	opt := bkclient.SolveOpt{
+		CacheImports: []bkclient.CacheOptionsEntry{existing},
+	}
+	opt = withCacheOpt(opt, "myregistry/cache")
+	if len(opt.CacheImports) != 2 {
+		t.Fatalf("expected 2 CacheImports, got %d", len(opt.CacheImports))
+	}
+	if opt.CacheImports[0].Attrs["ref"] != "existing/cache" {
+		t.Errorf("first entry: got %q, want %q", opt.CacheImports[0].Attrs["ref"], "existing/cache")
+	}
+	if opt.CacheImports[1].Attrs["ref"] != "myregistry/cache" {
+		t.Errorf("second entry: got %q, want %q", opt.CacheImports[1].Attrs["ref"], "myregistry/cache")
+	}
+}
