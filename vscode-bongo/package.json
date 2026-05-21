@@ -38,7 +38,7 @@
                 "bongo.serverPath": {
                     "type": "string",
                     "default": "",
-                    "description": "Path to the bongo-ls binary. Leave empty to use PATH."
+                    "description": "Path to the bongo-ls binary. Leave empty to use the bundled binary, or PATH if no bundled binary is found."
                 }
             }
         }
