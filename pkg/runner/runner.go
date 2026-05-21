@@ -96,10 +96,20 @@ func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string) bkclient.SolveOpt {
 	if opt.FrontendAttrs == nil {
 		opt.FrontendAttrs = make(map[string]string)
 	}
+
+	opt.CacheExports = append(opt.CacheExports, bkclient.CacheOptionsEntry{
+		Type: "registry",
+		Attrs: map[string]string{
+			"ref":  cacheFrom,
+			"mode": "max",
+		},
+	})
+
 	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
 		Type:  "registry",
 		Attrs: map[string]string{"ref": cacheFrom},
 	})
+
 	return opt
 }
 
