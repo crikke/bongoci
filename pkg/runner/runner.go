@@ -66,15 +66,30 @@ func solveExec(ctx context.Context, c *bkclient.Client, result *compiler.Result,
 		Exports: []bkclient.ExportEntry{
 			{Type: bkclient.ExporterLocal, OutputDir: tmpDir},
 		},
+
 		LocalMounts:         mounts,
 		AllowedEntitlements: []string{"security.insecure"},
 	}
+
+	solveOpt = withCacheOpt(solveOpt, "")
 
 	if err := solve(ctx, c, result, solveOpt); err != nil {
 		return err
 	}
 
 	return CopyOutputs(tmpDir, outputs)
+}
+
+// https://github.com/moby/buildkit#export-cache
+func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string) bkclient.SolveOpt {
+	if cacheFrom == "" {
+		return opt
+	}
+	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
+		Type:  "registry",
+		Attrs: map[string]string{"ref": cacheFrom},
+	})
+	return opt
 }
 
 func solve(ctx context.Context, c *bkclient.Client, result *compiler.Result, solveOpt bkclient.SolveOpt) error {
@@ -90,6 +105,7 @@ func solve(ctx context.Context, c *bkclient.Client, result *compiler.Result, sol
 		if err != nil {
 			return nil, fmt.Errorf("marshal LLB: %w", err)
 		}
+
 		return gwc.Solve(ctx, gateway.SolveRequest{
 			Definition: def.ToPB(),
 		})
