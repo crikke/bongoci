@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import { workspace, ExtensionContext, window } from 'vscode';
 import {
     LanguageClient,
@@ -10,8 +12,10 @@ let client: LanguageClient;
 export async function activate(context: ExtensionContext): Promise<void> {
     const config = workspace.getConfiguration('bongo');
     let serverPath = config.get<string>('serverPath', '');
+
     if (!serverPath) {
-        serverPath = 'bongo-ls';
+        const bundled = path.join(context.extensionPath, 'bin', 'bongo-ls');
+        serverPath = fs.existsSync(bundled) ? bundled : 'bongo-ls';
     }
 
     const serverOptions: ServerOptions = {
