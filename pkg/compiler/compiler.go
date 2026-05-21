@@ -1,9 +1,12 @@
 package compiler
 
 import (
+	"bufio"
 	"fmt"
 	"log/slog"
+	"os"
 	"path"
+	"strings"
 
 	"github.com/crikke/ci/pkg/manifest"
 	"github.com/crikke/ci/pkg/manifest/types"
@@ -46,7 +49,12 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 	}
 
 	base := llb.Image(m.Module.BaseImage, imagemetaresolver.WithDefault, llb.WithCustomNamef("With base image: %s", m.Module.BaseImage))
-	contextMount := llb.AddMount(m.AbsPath, llb.Local("context"))
+
+	ignorePatterns, err := getIgnorePatterns(m.AbsPath)
+	if err != nil {
+		return nil, fmt.Errorf("get ignore patterns: %w", err)
+	}
+	contextMount := llb.AddMount(m.AbsPath, llb.Local("context", llb.ExcludePatterns(ignorePatterns)))
 	depMounts := make([]llb.RunOption, len(m.Module.Include))
 	for i, dep := range m.Module.Include {
 		depMounts[i] = llb.AddMount(dep, llb.Local(depNames[i]))
@@ -117,6 +125,49 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 	}, nil
 }
 
+// Return patterns to ignore for a local directory.
+// If a .bongoignore file exists it takes precedence over .dockerignore, but if neither exists then an empty list is returned (i.e. no ignores).
+func getIgnorePatterns(contextPath string) ([]string, error) {
+	readIgnoreFile := func(path string) ([]string, error) {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, fmt.Errorf("read ignore file: %w", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		var patterns []string
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			patterns = append(patterns, line)
+		}
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("scan ignore file: %w", err)
+		}
+		return patterns, nil
+	}
+
+	if _, err := os.Stat(path.Join(contextPath, ".bongoignore")); err == nil {
+		patterns, err := readIgnoreFile(path.Join(contextPath, ".bongoignore"))
+		if err != nil {
+			return []string{}, fmt.Errorf("Error reading .bongoignore: %v", err)
+		}
+		return patterns, nil
+	}
+
+	if _, err := os.Stat(path.Join(contextPath, ".dockerignore")); err == nil {
+		patterns, err := readIgnoreFile(path.Join(contextPath, ".dockerignore"))
+		if err != nil {
+			return []string{}, fmt.Errorf("Error reading .dockerignore: %v", err)
+		}
+		return patterns, nil
+	}
+
+	return []string{}, nil
+}
 func createExportState(targetTaskName string, m *manifest.Manifest, compiled map[string]llb.State) (llb.State, error) {
 	output := llb.Scratch()
 	targetIncluded := false
