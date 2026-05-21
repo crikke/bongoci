@@ -41,7 +41,7 @@ func run(args []string) error {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
 
 	if len(args) < 2 || args[0] != "run" {
-		return fmt.Errorf("usage: ci [-v] run <task> [<task>...]")
+		return fmt.Errorf("usage: ci [-v] [--cache-from=<ref>] run <task> [<task>...]")
 	}
 	taskNames := args[1:]
 
@@ -77,6 +77,8 @@ func run(args []string) error {
 
 	slog.Debug("buildkit host", "host", host)
 
+	opts := runner.RunOptions{Host: host, CacheFrom: *cacheFrom}
+
 	for _, taskName := range taskNames {
 		if _, ok := m.Tasks[taskName]; !ok {
 			names := make([]string, 0, len(m.Tasks))
@@ -110,7 +112,6 @@ func run(args []string) error {
 		}
 
 		slog.Info("running task", "task", taskName)
-		opts := runner.RunOptions{Host: host, CacheFrom: *cacheFrom}
 		if err := runner.Run(ctx, opts, result, taskOutputs); err != nil {
 			return fmt.Errorf("task %q failed: %w", taskName, err)
 		}
