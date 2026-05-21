@@ -23,6 +23,12 @@ type ExportedOutput struct {
 	DestPath string // host destination (e.g. "./out/binary")
 }
 
+// RunOptions configures a Run call.
+type RunOptions struct {
+	Host      string
+	CacheFrom string // registry ref for cache import; empty = disabled
+}
+
 // localMounts converts a map of name→hostPath into a map of name→fsutil.FS
 // suitable for bkclient.SolveOpt.LocalMounts.
 func localMounts(dirs map[string]string) (map[string]fsutil.FS, error) {
@@ -38,18 +44,18 @@ func localMounts(dirs map[string]string) (map[string]fsutil.FS, error) {
 }
 
 // Run solves the compiled LLB graph via buildkitd and copies declared outputs to the host.
-func Run(ctx context.Context, host string, result *compiler.Result, outputs []ExportedOutput) error {
-	c, err := bkclient.New(ctx, host)
+func Run(ctx context.Context, opts RunOptions, result *compiler.Result, outputs []ExportedOutput) error {
+	c, err := bkclient.New(ctx, opts.Host)
 	if err != nil {
-		return fmt.Errorf("connect to buildkit at %q: %w\nhint: set BUILDKIT_HOST or ensure buildkitd is running", host, err)
+		return fmt.Errorf("connect to buildkit at %q: %w\nhint: set BUILDKIT_HOST or ensure buildkitd is running", opts.Host, err)
 	}
-	slog.Debug("connected to buildkit", "host", host)
+	slog.Debug("connected to buildkit", "host", opts.Host)
 	defer c.Close()
 
-	return solveExec(ctx, c, result, outputs)
+	return solveExec(ctx, c, opts, result, outputs)
 }
 
-func solveExec(ctx context.Context, c *bkclient.Client, result *compiler.Result, outputs []ExportedOutput) error {
+func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result *compiler.Result, outputs []ExportedOutput) error {
 	tmpDir, err := os.MkdirTemp("", "ci-export-*")
 	if err != nil {
 		return fmt.Errorf("create temp dir: %w", err)
@@ -71,7 +77,7 @@ func solveExec(ctx context.Context, c *bkclient.Client, result *compiler.Result,
 		AllowedEntitlements: []string{"security.insecure"},
 	}
 
-	solveOpt = withCacheOpt(solveOpt, "")
+	solveOpt = withCacheOpt(solveOpt, opts.CacheFrom)
 
 	if err := solve(ctx, c, result, solveOpt); err != nil {
 		return err

@@ -28,6 +28,7 @@ func run(args []string) error {
 	verbose := fs.Bool("verbose", false, "enable debug logging")
 	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
 	useHostBuildkitDaemon := fs.Bool("use-host-buildkit-daemon", false, "connect to a buildkitd already running on the host instead of starting one")
+	cacheFrom := fs.String("cache-from", "", "registry ref to import build cache from (e.g. myregistry/cache)")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("fs parsing error: %w", err)
 	}
@@ -109,7 +110,8 @@ func run(args []string) error {
 		}
 
 		slog.Info("running task", "task", taskName)
-		if err := runner.Run(ctx, host, result, taskOutputs); err != nil {
+		opts := runner.RunOptions{Host: host, CacheFrom: *cacheFrom}
+		if err := runner.Run(ctx, opts, result, taskOutputs); err != nil {
 			return fmt.Errorf("task %q failed: %w", taskName, err)
 		}
 	}
