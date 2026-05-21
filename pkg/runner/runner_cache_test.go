@@ -27,6 +27,15 @@ func TestWithCacheOpt_withRef(t *testing.T) {
 	}
 }
 
+func TestWithCacheOpt_frontendAttrsNotNil(t *testing.T) {
+	// buildkit's solve.go does maps.Clone(opt.FrontendAttrs) then maps.Copy into it;
+	// if FrontendAttrs is nil the clone is nil and Copy panics when CacheImports are set.
+	opt := withCacheOpt(bkclient.SolveOpt{}, "localhost:5000/cache")
+	if opt.FrontendAttrs == nil {
+		t.Error("FrontendAttrs must be non-nil when CacheImports are set")
+	}
+}
+
 func TestWithCacheOpt_appendsToExisting(t *testing.T) {
 	existing := bkclient.CacheOptionsEntry{
 		Type:  "registry",

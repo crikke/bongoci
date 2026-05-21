@@ -91,6 +91,11 @@ func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string) bkclient.SolveOpt {
 	if cacheFrom == "" {
 		return opt
 	}
+	// buildkit's solve.go clones FrontendAttrs then copies cache-derived attrs into it;
+	// maps.Clone(nil) returns nil and the subsequent maps.Copy panics.
+	if opt.FrontendAttrs == nil {
+		opt.FrontendAttrs = make(map[string]string)
+	}
 	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
 		Type:  "registry",
 		Attrs: map[string]string{"ref": cacheFrom},
