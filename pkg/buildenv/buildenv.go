@@ -78,6 +78,7 @@ func Start(ctx context.Context) (*Environment, error) {
 		HostConfig: &container.HostConfig{
 			Privileged: true,
 			Binds:      []string{tmpDir + ":/run/buildkit"},
+			ExtraHosts: []string{"host.docker.internal:host-gateway"},
 		},
 	})
 	if err != nil {
