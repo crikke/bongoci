@@ -1,0 +1,43 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Bongo",
+    "scopeName": "source.bongo",
+    "patterns": [
+        { "include": "#comment" },
+        { "include": "#keyword" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#task-name" },
+        { "include": "#variable" }
+    ],
+    "repository": {
+        "comment": {
+            "name": "comment.line.bongo",
+            "match": "#.*$"
+        },
+        "keyword": {
+            "name": "keyword.control.bongo",
+            "match": "\\b(BONGOVER|MODULE|NAME|BASE_IMAGE|INCLUDE|EXPORT|CMD|DOCKERFILE|INPUT|OUTPUT)\\b"
+        },
+        "string": {
+            "name": "string.quoted.double.bongo",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                { "name": "constant.character.escape.bongo", "match": "\\\\\"" }
+            ]
+        },
+        "number": {
+            "name": "constant.numeric.bongo",
+            "match": "\\b[0-9]+\\b"
+        },
+        "task-name": {
+            "name": "entity.name.function.bongo",
+            "match": "^[A-Za-z_][A-Za-z0-9_-]*(?=\\s*:)"
+        },
+        "variable": {
+            "name": "variable.other.bongo",
+            "match": "\\b[A-Za-z_][A-Za-z0-9_-]*\\b"
+        }
+    }
+}

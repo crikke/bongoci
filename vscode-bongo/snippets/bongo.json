@@ -1,0 +1,45 @@
+{
+    "Bongo file skeleton": {
+        "prefix": "bongo",
+        "body": [
+            "BONGOVER = 1",
+            "",
+            "MODULE:",
+            "\tNAME = \"${1:module-name}\"",
+            "\tBASE_IMAGE = \"${2:ubuntu:22.04}\"",
+            "",
+            "${3:BUILD}:",
+            "\tCMD \"${4:echo hello}\""
+        ],
+        "description": "Full .bongo file skeleton"
+    },
+    "MODULE block": {
+        "prefix": "module",
+        "body": [
+            "MODULE:",
+            "\tNAME = \"${1:module-name}\"",
+            "\tBASE_IMAGE = \"${2:ubuntu:22.04}\"",
+            "\tEXPORT:",
+            "\t\tINPUT ${3:TASK} ${4:output}"
+        ],
+        "description": "MODULE block with NAME, BASE_IMAGE, EXPORT"
+    },
+    "Task block": {
+        "prefix": "task",
+        "body": [
+            "${1:TASK_NAME}:",
+            "\tCMD \"${2:command}\""
+        ],
+        "description": "Named task block with CMD"
+    },
+    "INPUT line": {
+        "prefix": "input",
+        "body": "INPUT ${1:TASK} ${2:output} \"${3:dest}\"",
+        "description": "INPUT dependency declaration"
+    },
+    "OUTPUT line": {
+        "prefix": "output",
+        "body": "OUTPUT \"${1:name}\" \"${2:path}\"",
+        "description": "OUTPUT artifact declaration"
+    }
+}
