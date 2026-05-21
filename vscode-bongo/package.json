@@ -55,7 +55,7 @@
     "scripts": {
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
-        "build-server": "cd .. && mkdir -p vscode-bongo/bin && go build -o vscode-bongo/bin/bongo-ls ./cmd/bongo-ls/",
+        "build-server": "cd .. && mkdir -p vscode-bongo/bin && go build -ldflags=\"-s -w\" -o vscode-bongo/bin/bongo-ls ./cmd/bongo-ls/",
         "vscode:prepublish": "npm run compile",
         "package": "npm run build-server && vsce package"
     }
