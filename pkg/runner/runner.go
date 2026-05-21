@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/crikke/ci/pkg/compiler"
 	bkclient "github.com/moby/buildkit/client"
@@ -25,8 +26,9 @@ type ExportedOutput struct {
 
 // RunOptions configures a Run call.
 type RunOptions struct {
-	Host      string
-	CacheFrom string // registry ref for cache import; empty = disabled
+	Host          string
+	CacheFrom     string // registry ref for cache import; empty = disabled
+	InsecureCache bool   // allow plain-HTTP registry for cache (needed for local registries)
 }
 
 // localMounts converts a map of name→hostPath into a map of name→fsutil.FS
@@ -77,7 +79,11 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 		AllowedEntitlements: []string{"security.insecure"},
 	}
 
-	solveOpt = withCacheOpt(solveOpt, opts.CacheFrom)
+	var cacheErr error
+	solveOpt, cacheErr = withCacheOpt(solveOpt, opts.CacheFrom, opts.InsecureCache)
+	if cacheErr != nil {
+		return cacheErr
+	}
 
 	if err := solve(ctx, c, result, solveOpt); err != nil {
 		return err
@@ -87,9 +93,15 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 }
 
 // https://github.com/moby/buildkit#export-cache
-func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string) bkclient.SolveOpt {
+func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string, insecure bool) (bkclient.SolveOpt, error) {
 	if cacheFrom == "" {
-		return opt
+		return opt, nil
+	}
+	// A bare host:port like "localhost:5000" has no slash, so the distribution/reference
+	// library treats it as a familiar name and resolves it to docker.io — not the intended
+	// registry. Require at least one slash to ensure a repository path is present.
+	if !strings.Contains(cacheFrom, "/") {
+		return opt, fmt.Errorf("cache ref %q must include a repository path (e.g. %q)", cacheFrom, cacheFrom+"/buildcache")
 	}
 	// buildkit's solve.go clones FrontendAttrs then copies cache-derived attrs into it;
 	// maps.Clone(nil) returns nil and the subsequent maps.Copy panics.
@@ -97,28 +109,58 @@ func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string) bkclient.SolveOpt {
 		opt.FrontendAttrs = make(map[string]string)
 	}
 
+	exportAttrs := map[string]string{"ref": cacheFrom, "mode": "max"}
+	importAttrs := map[string]string{"ref": cacheFrom}
+	if insecure {
+		exportAttrs["registry.insecure"] = "true"
+		importAttrs["registry.insecure"] = "true"
+	}
+
 	opt.CacheExports = append(opt.CacheExports, bkclient.CacheOptionsEntry{
-		Type: "registry",
-		Attrs: map[string]string{
-			"ref":  cacheFrom,
-			"mode": "max",
-		},
+		Type:  "registry",
+		Attrs: exportAttrs,
 	})
 
 	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
 		Type:  "registry",
-		Attrs: map[string]string{"ref": cacheFrom},
+		Attrs: importAttrs,
 	})
 
-	return opt
+	return opt, nil
+}
+
+// onlyCacheVerticesFailed returns true when every failed vertex in a solve is a
+// cache-export step, meaning the actual build succeeded.
+func onlyCacheVerticesFailed(names []string) bool {
+	if len(names) == 0 {
+		return false
+	}
+	for _, name := range names {
+		if !strings.Contains(strings.ToLower(name), "exporting cache") {
+			return false
+		}
+	}
+	return true
 }
 
 func solve(ctx context.Context, c *bkclient.Client, result *compiler.Result, solveOpt bkclient.SolveOpt) error {
 	ch := make(chan *bkclient.SolveStatus)
+
+	var failedVertices []string
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		printStatus(ctx, "Building", ch)
+		fwd := make(chan *bkclient.SolveStatus, 64)
+		go printStatus(ctx, "Building", fwd)
+		for s := range ch {
+			for _, v := range s.Vertexes {
+				if v.Error != "" {
+					failedVertices = append(failedVertices, v.Name)
+				}
+			}
+			fwd <- s
+		}
+		close(fwd)
 	}()
 
 	_, err := c.Build(ctx, solveOpt, "", func(ctx context.Context, gwc gateway.Client) (*gateway.Result, error) {
@@ -133,6 +175,11 @@ func solve(ctx context.Context, c *bkclient.Client, result *compiler.Result, sol
 	}, ch)
 
 	<-done
+
+	if err != nil && onlyCacheVerticesFailed(failedVertices) {
+		slog.Warn("cache export failed, build output is still available", "error", err)
+		return nil
+	}
 	return err
 }
 

@@ -29,6 +29,7 @@ func run(args []string) error {
 	fs.BoolVar(verbose, "v", false, "shorthand for -verbose")
 	useHostBuildkitDaemon := fs.Bool("use-host-buildkit-daemon", false, "connect to a buildkitd already running on the host instead of starting one")
 	cacheFrom := fs.String("cache-from", "", "registry ref to import build cache from (e.g. myregistry/cache)")
+	cacheInsecure := fs.Bool("cache-insecure", false, "allow plain-HTTP registry for cache (needed for local registries)")
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("fs parsing error: %w", err)
 	}
@@ -77,7 +78,7 @@ func run(args []string) error {
 
 	slog.Debug("buildkit host", "host", host)
 
-	opts := runner.RunOptions{Host: host, CacheFrom: *cacheFrom}
+	opts := runner.RunOptions{Host: host, CacheFrom: *cacheFrom, InsecureCache: *cacheInsecure}
 
 	for _, taskName := range taskNames {
 		if _, ok := m.Tasks[taskName]; !ok {
