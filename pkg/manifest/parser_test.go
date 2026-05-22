@@ -339,3 +339,85 @@ BUILD:
 func toPtr(str string) *string {
 	return &str
 }
+
+func TestParseContent_cache_false(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+INSTALL_DEPS:
+    CMD "npm install"
+    CACHE FALSE
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	task, ok := m.Tasks["INSTALL_DEPS"]
+	if !ok {
+		t.Fatal("task 'INSTALL_DEPS' not found")
+	}
+	if task.Cache {
+		t.Error("expected Cache=false for CACHE FALSE, got true")
+	}
+}
+
+func TestParseContent_cache_true_explicit(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+    CACHE TRUE
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	task := m.Tasks["BUILD"]
+	if !task.Cache {
+		t.Error("expected Cache=true for CACHE TRUE, got false")
+	}
+}
+
+func TestParseContent_cache_defaults_true(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	task := m.Tasks["BUILD"]
+	if !task.Cache {
+		t.Error("expected Cache=true when CACHE is omitted, got false")
+	}
+}
+
+func TestParseContent_cache_invalid_value(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+    CACHE MAYBE
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for invalid CACHE value, got nil")
+	}
+}

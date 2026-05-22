@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/crikke/ci/pkg/manifest/types"
 )
@@ -284,11 +285,28 @@ func (p *parseState) parseTask() (*types.Task, []rawInput, error) {
 		return nil, nil, err
 	}
 
-	task := &types.Task{Name: nameTok.Value}
+	task := &types.Task{Name: nameTok.Value, Cache: true}
 	var raws []rawInput
 
 	for p.peek().Type == IDENT {
 		switch p.peek().Value {
+		case "CACHE":
+			p.consume()
+			tok, err := p.expect(IDENT)
+			if err != nil {
+				return nil, nil, err
+			}
+			switch strings.ToUpper(tok.Value) {
+			case "TRUE":
+				task.Cache = true
+			case "FALSE":
+				task.Cache = false
+			default:
+				return nil, nil, p.errorf(tok, "CACHE must be TRUE or FALSE, got %q", tok.Value)
+			}
+			if _, err := p.expect(NEWLINE); err != nil {
+				return nil, nil, err
+			}
 		case "CMD":
 			p.consume()
 			tok, err := p.expect(STRING)
