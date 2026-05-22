@@ -12,15 +12,17 @@ func strPtr(s string) *string { return &s }
 
 func makeRestore() *manifest.Task {
 	return &manifest.Task{
-		Name: "restore",
-		Cmd:  strPtr("dotnet restore"),
+		Name:  "restore",
+		Cache: true,
+		Cmd:   strPtr("dotnet restore"),
 	}
 }
 
 func makeCompile(restore *manifest.Task) *manifest.Task {
 	return &manifest.Task{
-		Name: "compile",
-		Cmd:  strPtr("dotnet publish"),
+		Name:  "compile",
+		Cache: true,
+		Cmd:   strPtr("dotnet publish"),
 		Inputs: []manifest.Input{
 			{Task: restore, OutputName: "packages", Dest: "/packages"},
 		},
@@ -97,10 +99,42 @@ func TestCompile_local_dirs_includes_deps(t *testing.T) {
 	}
 }
 
+func TestCompile_cache_false_sets_ignore_cache(t *testing.T) {
+	task := &manifest.Task{
+		Name:  "build",
+		Cache: false,
+		Cmd:   strPtr("make build"),
+	}
+	m := &manifest.Manifest{
+		AbsPath: "/test/module",
+		Module:  manifest.Module{BaseImage: "ubuntu:24.04"},
+		Tasks:   map[string]*manifest.Task{"build": task},
+	}
+	result, err := compiler.Compile(m, "build")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	def, err := result.State.Marshal(context.Background())
+	if err != nil {
+		t.Fatalf("State.Marshal: %v", err)
+	}
+	found := false
+	for _, meta := range def.Metadata {
+		if meta.IgnoreCache {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected IgnoreCache=true in LLB metadata for task with Cache=false")
+	}
+}
+
 func TestCompile_docker_task(t *testing.T) {
 	r := makeRestore()
 	dockerTask := &manifest.Task{
 		Name:             "build-image",
+		Cache:            true,
 		Dockerfile:       strPtr("Dockerfile"),
 		DockerfileOutput: strPtr("/out/image.tar"),
 		Inputs: []manifest.Input{

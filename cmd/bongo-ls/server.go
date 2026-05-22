@@ -29,6 +29,7 @@ var keywords = map[string]string{
 	"DOCKERFILE": "Builds a Docker image from a Dockerfile. Arguments: `\"path/to/Dockerfile\" \"output/image.tar\"`.",
 	"INPUT":      "Declares a dependency on another task's named output. Arguments: `TASK_NAME OUTPUT_NAME [\"dest\"]`.",
 	"OUTPUT":     "Declares a named output artifact. Arguments: `\"name\" \"path\"`.",
+	"CACHE":      "Whether BuildKit caches this step. Defaults to TRUE. Set to FALSE to always re-run.",
 }
 
 // parseErrorToDiagnostic converts "filename:line:col: message" to an LSP Diagnostic.

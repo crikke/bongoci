@@ -32,6 +32,7 @@ type Task struct {
 	Cmd              *string
 	Dockerfile       *string
 	DockerfileOutput *string
+	Cache            bool
 	Inputs           []Input
 	Outputs          []Output
 }

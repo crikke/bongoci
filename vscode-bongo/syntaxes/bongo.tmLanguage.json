@@ -17,7 +17,7 @@
         },
         "keyword": {
             "name": "keyword.control.bongo",
-            "match": "\\b(BONGOVER|MODULE|NAME|BASE_IMAGE|INCLUDE|EXPORT|CMD|DOCKERFILE|INPUT|OUTPUT)\\b"
+            "match": "\\b(BONGOVER|MODULE|NAME|BASE_IMAGE|INCLUDE|EXPORT|CMD|DOCKERFILE|INPUT|OUTPUT|CACHE)\\b"
         },
         "string": {
             "name": "string.quoted.double.bongo",
