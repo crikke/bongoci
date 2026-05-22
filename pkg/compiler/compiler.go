@@ -249,6 +249,9 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 		contextMount,
 		llb.Dir(absPath),
 	}
+	if !task.Cache {
+		opts = append(opts, llb.IgnoreCache)
+	}
 	opts = append(opts, depMounts...)
 
 	st, err := copyIhputs(base, task.Inputs, compiled)
@@ -277,6 +280,9 @@ func compileBuildahTask(task *manifest.Task, contextMount llb.RunOption, depMoun
 		llb.AddMount("/out", llb.Scratch()),
 		contextMount,
 		llb.Dir(absPath),
+	}
+	if !task.Cache {
+		opts = append(opts, llb.IgnoreCache)
 	}
 	opts = append(opts, depMounts...)
 

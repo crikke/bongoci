@@ -99,6 +99,37 @@ func TestCompile_local_dirs_includes_deps(t *testing.T) {
 	}
 }
 
+func TestCompile_cache_false_sets_ignore_cache(t *testing.T) {
+	task := &manifest.Task{
+		Name:  "build",
+		Cache: false,
+		Cmd:   strPtr("make build"),
+	}
+	m := &manifest.Manifest{
+		AbsPath: "/test/module",
+		Module:  manifest.Module{BaseImage: "ubuntu:24.04"},
+		Tasks:   map[string]*manifest.Task{"build": task},
+	}
+	result, err := compiler.Compile(m, "build")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	def, err := result.State.Marshal(context.Background())
+	if err != nil {
+		t.Fatalf("State.Marshal: %v", err)
+	}
+	found := false
+	for _, meta := range def.Metadata {
+		if meta.IgnoreCache {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected IgnoreCache=true in LLB metadata for task with Cache=false")
+	}
+}
+
 func TestCompile_docker_task(t *testing.T) {
 	r := makeRestore()
 	dockerTask := &manifest.Task{
