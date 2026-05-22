@@ -9,6 +9,7 @@ MODULE:
 
 INSTALL_DEPS:
     CMD "npm install"
+    CACHE FALSE
     OUTPUT "MODULES" "./node_modules"
 
 BUILD:
