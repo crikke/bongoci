@@ -29,6 +29,7 @@ type Export struct {
 // Task is a single build step.
 type Task struct {
 	Name             string
+	Cache            bool
 	Cmd              *string
 	Dockerfile       *string
 	DockerfileOutput *string

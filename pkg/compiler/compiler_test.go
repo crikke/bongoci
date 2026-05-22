@@ -12,15 +12,17 @@ func strPtr(s string) *string { return &s }
 
 func makeRestore() *manifest.Task {
 	return &manifest.Task{
-		Name: "restore",
-		Cmd:  strPtr("dotnet restore"),
+		Name:  "restore",
+		Cache: true,
+		Cmd:   strPtr("dotnet restore"),
 	}
 }
 
 func makeCompile(restore *manifest.Task) *manifest.Task {
 	return &manifest.Task{
-		Name: "compile",
-		Cmd:  strPtr("dotnet publish"),
+		Name:  "compile",
+		Cache: true,
+		Cmd:   strPtr("dotnet publish"),
 		Inputs: []manifest.Input{
 			{Task: restore, OutputName: "packages", Dest: "/packages"},
 		},
@@ -101,6 +103,7 @@ func TestCompile_docker_task(t *testing.T) {
 	r := makeRestore()
 	dockerTask := &manifest.Task{
 		Name:             "build-image",
+		Cache:            true,
 		Dockerfile:       strPtr("Dockerfile"),
 		DockerfileOutput: strPtr("/out/image.tar"),
 		Inputs: []manifest.Input{
