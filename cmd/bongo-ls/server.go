@@ -30,6 +30,7 @@ var keywords = map[string]string{
 	"INPUT":      "Declares a dependency on another task's named output. Arguments: `TASK_NAME OUTPUT_NAME [\"dest\"]`.",
 	"OUTPUT":     "Declares a named output artifact. Arguments: `\"name\" \"path\"`.",
 	"CACHE":      "Whether BuildKit caches this step. Defaults to TRUE. Set to FALSE to always re-run.",
+	"ENV":        "Sets an environment variable. Arguments: `KEY \"value\"`. Valid inside MODULE (defaults) and tasks (override per-key).",
 }
 
 // parseErrorToDiagnostic converts "filename:line:col: message" to an LSP Diagnostic.
