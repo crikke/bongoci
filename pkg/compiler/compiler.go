@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/crikke/ci/pkg/manifest"
@@ -60,14 +61,6 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 		depMounts[i] = llb.AddMount(dep, llb.Local(depNames[i]))
 	}
 
-	// TODO: handle envs
-	envs := []llb.StateOption{}
-
-	// for k, v := range m.Env {
-	// 	envs = append(envs, llb.AddEnv(k, v))
-	// }
-
-	base = base.With(envs...)
 	compiled := make(map[string]llb.State) // task name → /out scratch state
 
 	for _, name := range sorted {
@@ -78,8 +71,10 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 			return nil, fmt.Errorf("task %q has no CMD or DOCKERFILE", task.Name)
 		}
 
+		taskEnv := effectiveEnv(m.Module.Env, task.Env)
+
 		if task.Dockerfile != nil {
-			st, err := compileBuildahTask(task, contextMount, depMounts, compiled, m.AbsPath)
+			st, err := compileBuildahTask(task, contextMount, depMounts, compiled, m.AbsPath, taskEnv)
 			if err != nil {
 				return nil, fmt.Errorf("task %q: %w", task.Name, err)
 			}
@@ -88,7 +83,7 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 		}
 
 		if task.Cmd != nil {
-			st, err := compileCmdTask(base, task, contextMount, depMounts, compiled, m.AbsPath)
+			st, err := compileCmdTask(base, task, contextMount, depMounts, compiled, m.AbsPath, taskEnv)
 			if err != nil {
 				return nil, fmt.Errorf("task %q: %w", task.Name, err)
 			}
@@ -241,7 +236,7 @@ func copyIhputs(base llb.State, inputs []types.Input, compiled map[string]llb.St
 	return resultTask, nil
 }
 
-func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string) (llb.State, error) {
+func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string, env map[string]string) (llb.State, error) {
 	opts := []llb.RunOption{
 		llb.Args([]string{"/bin/sh", "-c", *task.Cmd}),
 		llb.WithCustomNamef("Running task: %s", task.Name),
@@ -258,14 +253,16 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 	if err != nil {
 		return llb.State{}, fmt.Errorf("task %q: %w", task.Name, err)
 	}
+	st = st.With(envStateOptions(env)...)
 
 	return st.Run(opts...).State, nil
 }
 
 // compileBuildahTask compiles a docker task as a buildah exec, producing /out/image.tar.
 // Downstream tasks can access the tarball at the declared inp.Dest path.
-func compileBuildahTask(task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string) (llb.State, error) {
+func compileBuildahTask(task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string, env map[string]string) (llb.State, error) {
 	base := llb.Image(buildahImage, imagemetaresolver.WithDefault, llb.WithCustomNamef("Building image: %s", task.Name))
+	base = base.With(envStateOptions(env)...)
 
 	outFile := path.Join("/out", path.Base(*task.DockerfileOutput))
 	cmd := fmt.Sprintf(
@@ -293,6 +290,38 @@ func compileBuildahTask(task *manifest.Task, contextMount llb.RunOption, depMoun
 
 	exec := st.Run(opts...)
 	return exec.GetMount("/out"), nil
+}
+
+// effectiveEnv merges moduleEnv with taskEnv; taskEnv values override moduleEnv on key collision.
+func effectiveEnv(moduleEnv, taskEnv map[string]string) map[string]string {
+	if len(moduleEnv) == 0 && len(taskEnv) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(moduleEnv)+len(taskEnv))
+	for k, v := range moduleEnv {
+		out[k] = v
+	}
+	for k, v := range taskEnv {
+		out[k] = v
+	}
+	return out
+}
+
+// envStateOptions converts an env map into a slice of llb.StateOptions ready for State.With.
+func envStateOptions(env map[string]string) []llb.StateOption {
+	if len(env) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	opts := make([]llb.StateOption, 0, len(keys))
+	for _, k := range keys {
+		opts = append(opts, llb.AddEnv(k, env[k]))
+	}
+	return opts
 }
 
 // topoSort returns task names in dependency-first order for targetTask's subgraph.

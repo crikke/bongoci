@@ -219,6 +219,19 @@ func (p *parseState) parseModule(dir string) (*types.Module, error) {
 			if _, err := p.expect(DEDENT); err != nil {
 				return nil, err
 			}
+		case "ENV":
+			p.consume()
+			key, val, err := p.parseEnvLine()
+			if err != nil {
+				return nil, err
+			}
+			if _, dup := mod.Env[key]; dup {
+				return nil, fmt.Errorf("module: duplicate ENV key %q", key)
+			}
+			if mod.Env == nil {
+				mod.Env = make(map[string]string)
+			}
+			mod.Env[key] = val
 		case "EXPORT":
 			p.consume()
 			if _, err := p.expect(COLON); err != nil {
@@ -364,6 +377,19 @@ func (p *parseState) parseTask() (*types.Task, []rawInput, error) {
 			if _, err := p.expect(NEWLINE); err != nil {
 				return nil, nil, err
 			}
+		case "ENV":
+			p.consume()
+			key, val, err := p.parseEnvLine()
+			if err != nil {
+				return nil, nil, err
+			}
+			if _, dup := task.Env[key]; dup {
+				return nil, nil, fmt.Errorf("task %q: duplicate ENV key %q", task.Name, key)
+			}
+			if task.Env == nil {
+				task.Env = make(map[string]string)
+			}
+			task.Env[key] = val
 		default:
 			tok := p.peek()
 			return nil, nil, p.errorf(tok, "unexpected task statement %q", tok.Value)
@@ -378,6 +404,22 @@ func (p *parseState) parseTask() (*types.Task, []rawInput, error) {
 
 func toPtr(str string) *string {
 	return &str
+}
+
+// parseEnvLine consumes `KEY "value" NEWLINE` after the caller has already consumed `ENV`.
+func (p *parseState) parseEnvLine() (string, string, error) {
+	keyTok, err := p.expect(IDENT)
+	if err != nil {
+		return "", "", err
+	}
+	valTok, err := p.expect(STRING)
+	if err != nil {
+		return "", "", err
+	}
+	if _, err := p.expect(NEWLINE); err != nil {
+		return "", "", err
+	}
+	return keyTok.Value, valTok.Value, nil
 }
 func checkCycles(tasks map[string]*types.Task) error {
 	visited := make(map[string]bool)

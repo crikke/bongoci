@@ -15,8 +15,9 @@ type Manifest struct {
 type Module struct {
 	Name      string
 	BaseImage string
-	Include   []string // dependency paths, resolved to absolute at parse time
-	Exports   []Export // task outputs to be written back to the host after the build
+	Include   []string          // dependency paths, resolved to absolute at parse time
+	Exports   []Export          // task outputs to be written back to the host after the build
+	Env       map[string]string // environment variables applied to every task; tasks may override per-key
 }
 
 // Export references a named output from a task that should be
@@ -35,6 +36,7 @@ type Task struct {
 	Cache            bool
 	Inputs           []Input
 	Outputs          []Output
+	Env              map[string]string // overrides module env per-key
 }
 
 // Input wires a named output from an upstream task into this task.

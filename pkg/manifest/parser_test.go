@@ -405,6 +405,128 @@ BUILD:
 	}
 }
 
+func TestParseContent_module_env(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    ENV LOG_LEVEL "info"
+    ENV REGISTRY "ghcr.io/crikke"
+
+BUILD:
+    CMD "make"
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := m.Module.Env["LOG_LEVEL"], "info"; got != want {
+		t.Errorf("Env[LOG_LEVEL]: got %q, want %q", got, want)
+	}
+	if got, want := m.Module.Env["REGISTRY"], "ghcr.io/crikke"; got != want {
+		t.Errorf("Env[REGISTRY]: got %q, want %q", got, want)
+	}
+}
+
+func TestParseContent_task_env(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+TEST:
+    CMD "npm test"
+    ENV LOG_LEVEL "debug"
+    ENV TEST_TIMEOUT "60"
+`
+	m, err := manifest.ParseContent(src, "/some/dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	task, ok := m.Tasks["TEST"]
+	if !ok {
+		t.Fatal("task 'TEST' not found")
+	}
+	if got, want := task.Env["LOG_LEVEL"], "debug"; got != want {
+		t.Errorf("TEST.Env[LOG_LEVEL]: got %q, want %q", got, want)
+	}
+	if got, want := task.Env["TEST_TIMEOUT"], "60"; got != want {
+		t.Errorf("TEST.Env[TEST_TIMEOUT]: got %q, want %q", got, want)
+	}
+}
+
+func TestParseContent_module_env_duplicate_key(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+    ENV K "a"
+    ENV K "b"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for duplicate module ENV key, got nil")
+	}
+}
+
+func TestParseContent_task_env_duplicate_key(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+    ENV K "a"
+    ENV K "b"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for duplicate task ENV key, got nil")
+	}
+}
+
+func TestParseContent_env_missing_value(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+    ENV LOG_LEVEL
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for ENV missing value, got nil")
+	}
+	if !strings.Contains(err.Error(), ":") {
+		t.Errorf("error message has no line info: %v", err)
+	}
+}
+
+func TestParseContent_env_missing_key(t *testing.T) {
+	const src = `
+BONGOVER = 1
+MODULE:
+    NAME = "m"
+    BASE_IMAGE = "ubuntu:24.04"
+
+BUILD:
+    CMD "make"
+    ENV "value-with-no-key"
+`
+	_, err := manifest.ParseContent(src, "/some/dir")
+	if err == nil {
+		t.Fatal("expected error for ENV missing key, got nil")
+	}
+}
+
 func TestParseContent_cache_invalid_value(t *testing.T) {
 	const src = `
 BONGOVER = 1
