@@ -2,6 +2,7 @@ package compiler_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/crikke/ci/pkg/compiler"
@@ -219,5 +220,78 @@ func TestCompile_docker_task(t *testing.T) {
 	}
 	if _, err = result.State.Marshal(context.Background()); err != nil {
 		t.Fatalf("State.Marshal: %v", err)
+	}
+}
+
+func TestCompile_docker_task_uses_rootless_buildkit(t *testing.T) {
+	r := makeRestore()
+	dockerTask := &manifest.Task{
+		Name:             "build-image",
+		Cache:            true,
+		Dockerfile:       strPtr("Dockerfile"),
+		DockerfileOutput: strPtr("/out/image.tar"),
+		Inputs: []manifest.Input{
+			{Task: r, OutputName: "image", Dest: "/out"},
+		},
+	}
+	m := &manifest.Manifest{
+		AbsPath: "/test/module",
+		Module:  manifest.Module{BaseImage: "ubuntu:24.04"},
+		Tasks: map[string]*manifest.Task{
+			"restore":     r,
+			"build-image": dockerTask,
+		},
+	}
+
+	result, err := compiler.Compile(m, "build-image")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	def, err := result.State.Marshal(context.Background())
+	if err != nil {
+		t.Fatalf("State.Marshal: %v", err)
+	}
+
+	var foundRootlessImage bool
+	var foundBuildctlArg bool
+	var foundBuildkitdFlags bool
+
+	for _, raw := range def.Def {
+		var op pb.Op
+		if err := op.UnmarshalVT(raw); err != nil {
+			t.Fatalf("UnmarshalVT: %v", err)
+		}
+		if src := op.GetSource(); src != nil {
+			if strings.Contains(src.Identifier, "moby/buildkit:rootless") {
+				foundRootlessImage = true
+			}
+		}
+		if exec := op.GetExec(); exec != nil {
+			if exec.Security == pb.SecurityMode_INSECURE {
+				t.Error("exec op must not use SecurityMode_INSECURE")
+			}
+			if exec.Meta != nil {
+				for _, arg := range exec.Meta.Args {
+					if arg == "buildctl-daemonless.sh" {
+						foundBuildctlArg = true
+					}
+				}
+				for _, env := range exec.Meta.Env {
+					if env == "BUILDKITD_FLAGS=--oci-worker-no-process-sandbox" {
+						foundBuildkitdFlags = true
+					}
+				}
+			}
+		}
+	}
+
+	if !foundRootlessImage {
+		t.Error("expected source op for docker-image://moby/buildkit:rootless")
+	}
+	if !foundBuildctlArg {
+		t.Error("expected exec op with buildctl-daemonless.sh as first arg")
+	}
+	if !foundBuildkitdFlags {
+		t.Error("expected exec env BUILDKITD_FLAGS=--oci-worker-no-process-sandbox")
 	}
 }
