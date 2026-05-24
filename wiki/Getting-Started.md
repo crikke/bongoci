@@ -4,7 +4,7 @@
 
 - **Go 1.25** (matches `go.mod`)
 - **Docker daemon** reachable through the standard env (`DOCKER_HOST` or the default socket). `ci` uses the Docker API to spin up a `moby/buildkit` container for each invocation, unless `--use-host-buildkit-daemon` is passed.
-- Permission to run privileged containers (BuildKit needs `--privileged` and `security.insecure` to run `buildah`-backed `DOCKERFILE` tasks).
+- Membership in the `docker` group (or equivalent socket access). No `sudo` or privileged containers required.
 
 ## Build the binaries
 

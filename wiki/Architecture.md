@@ -30,7 +30,7 @@ The data model lives in `pkg/manifest/types/types.go` and is aliased by `pkg/man
 3. **Mount `INCLUDE` deps**: each dep gets a `dep-N` local and is mounted at its absolute host path inside the container.
 4. **Per task**, in topological order:
    - For `CMD` tasks: start from `MODULE.BASE_IMAGE`, layer in upstream `INPUT` artifacts via `llb.Copy(...)`, apply env vars, then `Run("/bin/sh", "-c", task.Cmd)`. `CACHE FALSE` adds `llb.IgnoreCache`.
-   - For `DOCKERFILE` tasks: start from `quay.io/buildah/stable`, run `buildah build` then `buildah push oci-archive://...` with `security.insecure`, and treat `/out` as the task's artifact mount. The downstream `INPUT` reads from this `/out` state.
+   - For `DOCKERFILE` tasks: use BuildKit's native OCI image building and export `/out` as the task's artifact mount. The downstream `INPUT` reads from this `/out` state.
 5. **Build the export state**: a `Scratch` accumulating all `MODULE.EXPORT` outputs. If the target task isn't in the export list, the full target state is copied in as well so the runner still has something to export.
 
 Result is `{ State llb.State, LocalDirs map[string]string }`.
@@ -40,7 +40,7 @@ Result is `{ State llb.State, LocalDirs map[string]string }`.
 `buildenv.Start(ctx)` creates an isolated environment for the build:
 
 - A dedicated internal Docker bridge network
-- A privileged `moby/buildkit:latest` container with `--allow-insecure-entitlement security.insecure` and `--group $(id -g)`
+- A `moby/buildkit:latest` container with `--group $(id -g)` for rootless socket access
 - The buildkit socket is bind-mounted out via a temp directory; the host points at `unix://<tmp>/buildkitd.sock`
 - `waitForBuildkitd` polls `client.Info` until ready
 - `Close()` stops the container, removes the network, and cleans the tmpdir

@@ -34,7 +34,7 @@ ci run BUILD TEST DOCKER_BUILD
 Unless `--use-host-buildkit-daemon` is set, `ci`:
 
 1. Creates a Docker bridge network (internal, no outbound)
-2. Starts a `moby/buildkit:latest` container, privileged, with `security.insecure` allowed and a shared `tmpdir` mount for the socket
+2. Starts a `moby/buildkit:latest` container with a shared `tmpdir` mount for the socket
 3. Waits up to 2 minutes for buildkitd to respond to `Info`
 4. Tears the container and network down on exit (or any failure during start)
 

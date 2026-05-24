@@ -65,7 +65,7 @@ A task is `TASK_NAME:` followed by an indented body. Allowed statements:
 | Statement | Notes |
 | --- | --- |
 | `CMD "..."` | Shell command run as `/bin/sh -c "..."` in the base image |
-| `DOCKERFILE "path" "out.tar"` | Build a Docker image via `buildah` and emit an OCI archive at `/out/<basename(out.tar)>`. Requires `security.insecure`. Mutually used instead of `CMD` |
+| `DOCKERFILE "path" "out.tar"` | Build a Docker image and emit an OCI archive at `/out/<basename(out.tar)>`. Mutually exclusive with `CMD` |
 | `OUTPUT "NAME" "path"` | Name an artifact path inside the container so downstream tasks (and `EXPORT`) can refer to it |
 | `INPUT UPSTREAM OUTPUT "dest"` | Mount/copy `UPSTREAM`'s `OUTPUT` to `dest` in this task. `dest` is optional |
 | `CACHE TRUE` / `CACHE FALSE` | Defaults to `TRUE`. `FALSE` adds `llb.IgnoreCache` so the step always re-runs |
