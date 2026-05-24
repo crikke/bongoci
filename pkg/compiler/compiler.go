@@ -13,10 +13,9 @@ import (
 	"github.com/crikke/ci/pkg/manifest/types"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
-	"github.com/moby/buildkit/solver/pb"
 )
 
-const buildahImage = "quay.io/buildah/stable"
+const buildkitRootlessImage = "moby/buildkit:rootless"
 
 // Result holds the compiled LLB state and metadata needed by the runner.
 type Result struct {
@@ -74,7 +73,7 @@ func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
 		taskEnv := effectiveEnv(m.Module.Env, task.Env)
 
 		if task.Dockerfile != nil {
-			st, err := compileBuildahTask(task, contextMount, depMounts, compiled, m.AbsPath, taskEnv)
+			st, err := compileDockerfileTask(task, contextMount, depMounts, compiled, m.AbsPath, taskEnv)
 			if err != nil {
 				return nil, fmt.Errorf("task %q: %w", task.Name, err)
 			}
@@ -258,22 +257,26 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 	return st.Run(opts...).State, nil
 }
 
-// compileBuildahTask compiles a docker task as a buildah exec, producing /out/image.tar.
-// Downstream tasks can access the tarball at the declared inp.Dest path.
-func compileBuildahTask(task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string, env map[string]string) (llb.State, error) {
-	base := llb.Image(buildahImage, imagemetaresolver.WithDefault, llb.WithCustomNamef("Building image: %s", task.Name))
+// compileDockerfileTask compiles a DOCKERFILE task using buildctl-daemonless.sh inside
+// moby/buildkit:rootless, producing an OCI archive at /out/<basename>.
+// No security.insecure entitlement is required; nested user namespaces on the host suffice.
+func compileDockerfileTask(task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string, env map[string]string) (llb.State, error) {
+	base := llb.Image(buildkitRootlessImage, imagemetaresolver.WithDefault, llb.WithCustomNamef("Building image: %s", task.Name))
 	base = base.With(envStateOptions(env)...)
 
 	outFile := path.Join("/out", path.Base(*task.DockerfileOutput))
-	cmd := fmt.Sprintf(
-		"buildah --storage-driver=vfs build -f %s -t ci-build . && buildah --storage-driver=vfs push ci-build oci-archive://%s",
-		*task.Dockerfile, outFile,
-	)
 
 	opts := []llb.RunOption{
-		llb.Args([]string{"/bin/sh", "-c", cmd}),
+		llb.Args([]string{
+			"buildctl-daemonless.sh", "build",
+			"--frontend", "dockerfile.v0",
+			"--local", "context=" + absPath,
+			"--local", "dockerfile=" + absPath,
+			"--opt", "filename=" + *task.Dockerfile,
+			"--output", "type=oci,dest=" + outFile,
+		}),
+		llb.AddEnv("BUILDKITD_FLAGS", "--oci-worker-no-process-sandbox"),
 		llb.WithCustomNamef("Building image: %s", task.Name),
-		llb.Security(pb.SecurityMode_INSECURE),
 		llb.AddMount("/out", llb.Scratch()),
 		contextMount,
 		llb.Dir(absPath),
