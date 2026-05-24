@@ -75,8 +75,7 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 			{Type: bkclient.ExporterLocal, OutputDir: tmpDir},
 		},
 
-		LocalMounts:         mounts,
-		AllowedEntitlements: []string{"security.insecure"},
+		LocalMounts: mounts,
 	}
 
 	var cacheErr error
