@@ -13,7 +13,7 @@ import (
 	dockerclient "github.com/moby/moby/client"
 )
 
-const bulder_image = "moby/buildkit:rootless"
+const builderImage = "moby/buildkit:rootless"
 
 // Environment holds the Docker resources that form the managed build environment.
 // Call Close when done to release all resources.
@@ -70,8 +70,8 @@ func Start(ctx context.Context) (*Environment, error) {
 
 	resp, err := cli.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
 		Config: &container.Config{
-			Image: bulder_image,
-			Cmd:   []string{"--addr", "unix:///run/user/1000/buildkit/buildkitd.sock"},
+			Image: builderImage,
+			Cmd:   []string{"--addr", "unix:///run/user/1000/buildkit/buildkitd.sock", "--oci-worker-no-process-sandbox"},
 		},
 		HostConfig: &container.HostConfig{
 			Binds:       []string{tmpDir + ":/run/user/1000/buildkit"},
