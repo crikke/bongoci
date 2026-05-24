@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
+	"syscall"
 	"time"
 
 	"github.com/crikke/ci/pkg/buildenv"
@@ -57,7 +59,8 @@ func run(args []string) error {
 	}
 	slog.Debug("manifest parsed", "path", tomlPath, "tasks", len(m.Tasks))
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	var host string
 	if !*useHostBuildkitDaemon {
