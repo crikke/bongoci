@@ -6,13 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	bkclient "github.com/moby/buildkit/client"
 	"github.com/moby/moby/api/types/container"
 	dockerclient "github.com/moby/moby/client"
 )
+
+const bulder_image = "moby/buildkit:rootless"
 
 // Environment holds the Docker resources that form the managed build environment.
 // Call Close when done to release all resources.
@@ -69,16 +70,13 @@ func Start(ctx context.Context) (*Environment, error) {
 
 	resp, err := cli.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
 		Config: &container.Config{
-			Image: "moby/buildkit:latest",
-			Cmd: []string{
-				"--group", strconv.Itoa(os.Getgid()),
-				"--allow-insecure-entitlement", "security.insecure",
-			},
+			Image: bulder_image,
+			Cmd:   []string{"--addr", "unix:///run/user/1000/buildkit/buildkitd.sock"},
 		},
 		HostConfig: &container.HostConfig{
-			Privileged: true,
-			Binds:      []string{tmpDir + ":/run/buildkit"},
-			ExtraHosts: []string{"host.docker.internal:host-gateway"},
+			Binds:       []string{tmpDir + ":/run/user/1000/buildkit"},
+			SecurityOpt: []string{"seccomp=unconfined", "apparmor=unconfined", "systempaths=unconfined"},
+			ExtraHosts:  []string{"host.docker.internal:host-gateway"},
 		},
 	})
 	if err != nil {
