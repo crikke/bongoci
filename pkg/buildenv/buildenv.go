@@ -13,7 +13,7 @@ import (
 	dockerclient "github.com/moby/moby/client"
 )
 
-const builderImage = "moby/buildkit:rootless"
+const builderImage = "docker.io/moby/buildkit:rootless"
 
 // Environment holds the Docker resources that form the managed build environment.
 // Call Close when done to release all resources.
@@ -68,6 +68,19 @@ func Start(ctx context.Context) (*Environment, error) {
 		os.RemoveAll(tmpDir)
 	}
 
+	slog.Debug("pulling builder image", "image", builderImage)
+	pullResp, err := cli.ImagePull(ctx, builderImage, dockerclient.ImagePullOptions{})
+	if err != nil {
+		teardown("", false)
+		return nil, fmt.Errorf("pull %s: %w", builderImage, err)
+	}
+	if err := pullResp.Wait(ctx); err != nil {
+		pullResp.Close()
+		teardown("", false)
+		return nil, fmt.Errorf("pull %s: %w", builderImage, err)
+	}
+	pullResp.Close()
+
 	resp, err := cli.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
 		Config: &container.Config{
 			Image: builderImage,
@@ -75,7 +88,8 @@ func Start(ctx context.Context) (*Environment, error) {
 		},
 		HostConfig: &container.HostConfig{
 			Binds:       []string{tmpDir + ":/run/user/1000/buildkit"},
-			SecurityOpt: []string{"seccomp=unconfined", "apparmor=unconfined", "systempaths=unconfined"},
+			SecurityOpt: []string{"seccomp=unconfined"},
+			Resources:   container.Resources{Devices: []container.DeviceMapping{{PathOnHost: "/dev/fuse", PathInContainer: "/dev/fuse", CgroupPermissions: "rwm"}}},
 			ExtraHosts:  []string{"host.docker.internal:host-gateway"},
 		},
 	})

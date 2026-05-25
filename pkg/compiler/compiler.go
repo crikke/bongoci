@@ -15,7 +15,7 @@ import (
 	"github.com/moby/buildkit/client/llb/imagemetaresolver"
 )
 
-const buildkitRootlessImage = "moby/buildkit:rootless"
+const buildkitRootlessImage = "docker.io/moby/buildkit:rootless"
 
 // Result holds the compiled LLB state and metadata needed by the runner.
 type Result struct {
@@ -259,7 +259,8 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 
 // compileDockerfileTask compiles a DOCKERFILE task using buildctl-daemonless.sh inside
 // moby/buildkit:rootless, producing an OCI archive at /out/<basename>.
-// No elevated privileges are required; nested user namespaces on the host suffice.
+// The exec step runs as uid 0 inside the outer buildkitd's rootlesskit namespace, so
+// buildkitd auto-selects kernel overlayfs — fuse-overlayfs must not be forced here.
 func compileDockerfileTask(task *manifest.Task, contextMount llb.RunOption, depMounts []llb.RunOption, compiled map[string]llb.State, absPath string, env map[string]string) (llb.State, error) {
 	base := llb.Image(buildkitRootlessImage, imagemetaresolver.WithDefault, llb.WithCustomNamef("Building image: %s", task.Name))
 	base = base.With(envStateOptions(env)...)
