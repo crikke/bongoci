@@ -1,1 +1,1 @@
- Because fuck you 
+Docs are found in /wiki
