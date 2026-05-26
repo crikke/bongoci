@@ -32,6 +32,9 @@ func run(args []string) error {
 	useHostBuildkitDaemon := fs.Bool("use-host-buildkit-daemon", false, "connect to a buildkitd already running on the host instead of starting one")
 	cacheFrom := fs.String("cache-from", "", "registry ref to import build cache from (e.g. myregistry/cache)")
 	cacheInsecure := fs.Bool("cache-insecure", false, "allow plain-HTTP registry for cache (needed for local registries)")
+	buildkitImage := fs.String("buildkit-image", "moby/buildkit:v0.29.0-ubuntu", "use a different buildkit image")
+	buildahImage := fs.String("buildah-image", "quay.io/buildah/stable:v1.43.1", "use a different buildah image")
+
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("fs parsing error: %w", err)
 	}
@@ -66,7 +69,7 @@ func run(args []string) error {
 	if !*useHostBuildkitDaemon {
 		startCtx, startCancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer startCancel()
-		env, startErr := buildenv.Start(startCtx)
+		env, startErr := buildenv.Start(startCtx, *buildkitImage)
 		if startErr != nil {
 			return fmt.Errorf("start build environment: %w", startErr)
 		}
@@ -93,7 +96,7 @@ func run(args []string) error {
 			return fmt.Errorf("unknown task %q; available: %v", taskName, names)
 		}
 
-		result, err := compiler.Compile(m, taskName)
+		result, err := compiler.Compile(m, taskName, *buildahImage)
 		if err != nil {
 			return fmt.Errorf("compile %q: %w", taskName, err)
 		}

@@ -28,7 +28,7 @@ type Environment struct {
 // Start provisions a Docker network and a buildkitd container, waits for
 // buildkitd to be ready, and returns the environment. All resources are
 // cleaned up if any step fails.
-func Start(ctx context.Context) (*Environment, error) {
+func Start(ctx context.Context, img string) (*Environment, error) {
 	tmpDir, err := os.MkdirTemp("", "ci-buildkitd-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
@@ -69,7 +69,7 @@ func Start(ctx context.Context) (*Environment, error) {
 
 	resp, err := cli.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
 		Config: &container.Config{
-			Image: "moby/buildkit:latest",
+			Image: img,
 			Cmd: []string{
 				"--group", strconv.Itoa(os.Getgid()),
 				"--allow-insecure-entitlement", "security.insecure",
