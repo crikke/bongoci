@@ -47,7 +47,7 @@ func testManifest() *manifest.Manifest {
 
 func TestCompile_unknown_task(t *testing.T) {
 	m := testManifest()
-	_, err := compiler.Compile(m, "nonexistent")
+	_, err := compiler.Compile(m, "nonexistent","")
 	if err == nil {
 		t.Fatal("expected error for unknown task, got nil")
 	}
@@ -55,7 +55,7 @@ func TestCompile_unknown_task(t *testing.T) {
 
 func TestCompile_single_exec_task(t *testing.T) {
 	m := testManifest()
-	result, err := compiler.Compile(m, "restore")
+	result, err := compiler.Compile(m, "restore","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestCompile_single_exec_task(t *testing.T) {
 
 func TestCompile_task_with_inputs(t *testing.T) {
 	m := testManifest()
-	result, err := compiler.Compile(m, "compile")
+	result, err := compiler.Compile(m, "compile","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestCompile_task_with_inputs(t *testing.T) {
 func TestCompile_local_dirs_includes_deps(t *testing.T) {
 	m := testManifest()
 	m.Module.Include = []string{"/other/module"}
-	result, err := compiler.Compile(m, "restore")
+	result, err := compiler.Compile(m, "restore","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestCompile_cache_false_sets_ignore_cache(t *testing.T) {
 		Module:  manifest.Module{BaseImage: "ubuntu:24.04"},
 		Tasks:   map[string]*manifest.Task{"build": task},
 	}
-	result, err := compiler.Compile(m, "build")
+	result, err := compiler.Compile(m, "build","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestCompile_task_env_overrides_module_env(t *testing.T) {
 		},
 		Tasks: map[string]*manifest.Task{"build": task},
 	}
-	result, err := compiler.Compile(m, "build")
+	result, err := compiler.Compile(m, "build","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestCompile_docker_task(t *testing.T) {
 		},
 	}
 
-	result, err := compiler.Compile(m, "build-image")
+	result, err := compiler.Compile(m, "build-image","")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

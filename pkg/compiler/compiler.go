@@ -29,7 +29,7 @@ type Result struct {
 //   - context + dependencies mounted read-only at their absolute host paths
 //   - upstream task outputs mounted read-only at the declared Dest paths
 //   - a scratch volume at /out as the sole writable output
-func Compile(m *manifest.Manifest, targetTaskName string) (*Result, error) {
+func Compile(m *manifest.Manifest, targetTaskName, buildahImg string) (*Result, error) {
 	if _, ok := m.Tasks[targetTaskName]; !ok {
 		return nil, fmt.Errorf("unknown task %q", targetTaskName)
 	}
