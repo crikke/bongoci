@@ -8,7 +8,15 @@ require (
 	github.com/tonistiigi/fsutil v0.0.0-20251211185533-a2aa163d723f
 )
 
-require github.com/moby/moby/api v1.54.2
+require (
+	github.com/moby/moby/api v1.54.2
+	github.com/spf13/cobra v1.10.2
+)
+
+require (
+	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+)
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
