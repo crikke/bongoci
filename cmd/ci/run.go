@@ -46,7 +46,11 @@ func newRunCmd() *cobra.Command {
 }
 
 func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, cacheInsecure bool, buildkitImage, buildahImage string) error {
-	tomlPath, found := findBuildToml(mustCwd())
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("could not determine working directory: %w", err)
+	}
+	tomlPath, found := findBuildToml(cwd)
 	if !found {
 		return fmt.Errorf("build.bongo not found (searched up from current directory)")
 	}
@@ -133,13 +137,4 @@ func findBuildToml(dir string) (string, bool) {
 		}
 		dir = parent
 	}
-}
-
-func mustCwd() string {
-	dir, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error: could not determine working directory:", err)
-		os.Exit(1)
-	}
-	return dir
 }

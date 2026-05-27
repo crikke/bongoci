@@ -1,27 +1,49 @@
 # `ci` CLI Reference
 
 ```
-ci [flags] run <task> [<task>...]
+ci [global flags] <subcommand> [flags] [args]
 ```
 
 `ci` searches upward from the current directory for `build.bongo` and runs the named tasks one after another against a buildkitd. Source: `cmd/ci/main.go`.
 
-## Flags
+## Subcommands
+
+| Subcommand | Description |
+| --- | --- |
+| `run <task> [<task>...]` | Run one or more tasks from `build.bongo` |
+| `list` | List available tasks (stub, not yet implemented) |
+| `validate` | Validate `build.bongo` without running (stub, not yet implemented) |
+| `init` | Initialise a new `build.bongo` file (stub, not yet implemented) |
+
+## Global flags
+
+Available to all subcommands.
 
 | Flag | Default | Effect |
 | --- | --- | --- |
 | `-v`, `--verbose` | `false` | Sets the slog level to `debug` |
-| `--use-host-buildkit-daemon` | `false` | Skip launching a containerised buildkitd; connect to `$BUILDKIT_HOST` (or `unix:///run/buildkit/buildkitd.sock` if unset) |
-| `--cache-from <ref>` | `""` | Registry ref to import/export the BuildKit cache. Must contain a `/` (e.g. `localhost:5000/buildcache`). See [[Caching]] |
-| `--cache-insecure` | `false` | Allow plain HTTP for `--cache-from` (needed for local insecure registries) |
 
-## Positional arguments
+## `run` subcommand
 
-`run` is required and must be followed by at least one task name. Unknown task names are rejected with the list of available tasks.
+```
+ci run [flags] <task> [<task>...]
+```
+
+At least one task name is required. Unknown task names are rejected with the list of available tasks.
 
 ```sh
 ci run BUILD TEST DOCKER_BUILD
 ```
+
+### `run` flags
+
+| Flag | Default | Effect |
+| --- | --- | --- |
+| `--use-host-buildkit-daemon` | `false` | Skip launching a containerised buildkitd; connect to `$BUILDKIT_HOST` (or `unix:///run/buildkit/buildkitd.sock` if unset) |
+| `--cache-from <ref>` | `""` | Registry ref to import/export the BuildKit cache. Must contain a `/` (e.g. `localhost:5000/buildcache`). See [[Caching]] |
+| `--cache-insecure` | `false` | Allow plain HTTP for `--cache-from` (needed for local insecure registries) |
+| `--buildkit-image <image>` | `moby/buildkit:v0.29.0-ubuntu` | Use a different buildkit image |
+| `--buildah-image <image>` | `quay.io/buildah/stable:v1.43.1` | Use a different buildah image |
 
 ## Exit behaviour
 
