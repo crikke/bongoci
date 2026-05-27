@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest bongoci
+        run: |
+          RELEASE_TAG=$(curl -s https://api.github.com/repos/crikke/bongoci/releases/latest | jq -r '.tag_name')
+          # strip leading v if present
+          VERSION=${RELEASE_TAG#v}
+          ARCH_RAW=$(uname -m)
+          case "${ARCH_RAW}" in
+            x86_64) ARCH=amd64 ;;
+            aarch64) ARCH=arm64 ;;
+            *) ARCH=${ARCH_RAW} ;;
+          esac
+          FNAME="bongoci-v${VERSION}-linux-${ARCH}.tar.gz"
+          echo "Downloading ${FNAME}"
+          wget "https://github.com/crikke/bongoci/releases/download/${RELEASE_TAG}/${FNAME}"
+          tar -xzf "${FNAME}"
+          # assume tarball contains the bongoci binary at top level
+          chmod +x bongoci || true
+          ls -la
+
+      - name: Build, test and package with bongoci
+        run: ./bongoci run test package       
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ./out
