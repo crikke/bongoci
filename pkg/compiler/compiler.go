@@ -255,7 +255,7 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 	}
 	st = st.With(envStateOptions(env)...)
 
-	return st.Run(opts...).State, nil
+	return st.Run(opts...).GetMount(absPath), nil
 }
 
 // compileBuildahTask compiles a docker task as a buildah exec, producing /out/image.tar.

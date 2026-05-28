@@ -67,6 +67,17 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 		os.RemoveAll(tmpDir)
 	}
 
+	slog.Debug("pulling buildkit image", "image", img)
+	pullResp, err := cli.ImagePull(ctx, img, dockerclient.ImagePullOptions{})
+	if err != nil {
+		teardown("", false)
+		return nil, fmt.Errorf("pull buildkit image: %w", err)
+	}
+	if err := pullResp.Wait(ctx); err != nil {
+		teardown("", false)
+		return nil, fmt.Errorf("pull buildkit image: %w", err)
+	}
+
 	resp, err := cli.ContainerCreate(ctx, dockerclient.ContainerCreateOptions{
 		Config: &container.Config{
 			Image: img,
