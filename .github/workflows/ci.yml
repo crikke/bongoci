@@ -28,7 +28,9 @@ jobs:
           # assume tarball contains the bongoci binary at top level
           chmod +x bongoci || true
           ls -la
-
+      - name: Docker Setup Docker
+        uses: docker/setup-docker-action@v5.2.0
+                
       - name: Build, test and package with bongoci
         run: ./bongoci run TEST BUILD_BONGOCI       
       - name: Upload artifact
