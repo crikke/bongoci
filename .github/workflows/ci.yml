@@ -28,6 +28,10 @@ jobs:
           # assume tarball contains the bongoci binary at top level
           chmod +x bongoci || true
           ls -la
+      - name: Use iptables-legacy for Docker compatibility
+        run: |
+          sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+          sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
       - name: Docker Setup Docker
         uses: docker/setup-docker-action@v5.2.0
                 
