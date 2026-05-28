@@ -30,7 +30,7 @@ jobs:
           ls -la
 
       - name: Build, test and package with bongoci
-        run: ./bongoci run test package       
+        run: ./bongoci run TEST BUILD_BONGOCI       
       - name: Upload artifact
         uses: actions/upload-artifact@v3
         with:
