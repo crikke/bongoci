@@ -39,7 +39,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&useHostBuildkitDaemon, "use-host-buildkit-daemon", false, "connect to a buildkitd already running on the host instead of starting one")
 	cmd.Flags().StringVar(&cacheFrom, "cache-from", "", "registry ref to import build cache from (e.g. myregistry/cache)")
 	cmd.Flags().BoolVar(&cacheInsecure, "cache-insecure", false, "allow plain-HTTP registry for cache (needed for local registries)")
-	cmd.Flags().StringVar(&buildkitImage, "buildkit-image", "moby/buildkit:v0.29.0-ubuntu", "use a different buildkit image")
+	cmd.Flags().StringVar(&buildkitImage, "buildkit-image", "docker.io/moby/buildkit:v0.30.0", "use a different buildkit image")
 	cmd.Flags().StringVar(&buildahImage, "buildah-image", "quay.io/buildah/stable:v1.43.1", "use a different buildah image")
 
 	return cmd
