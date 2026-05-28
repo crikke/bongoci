@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - ci-pipeline
 
 jobs:
   build:
@@ -32,7 +32,7 @@ jobs:
       - name: Build, test and package with bongoci
         run: ./bongoci run TEST BUILD_BONGOCI       
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: ./out/
