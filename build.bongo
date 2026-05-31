@@ -6,11 +6,11 @@ MODULE:
     EXPORT:
         INPUT BUILD_BONGOCI BUILD
         INPUT TEST RESULT
-
+        
 BUILD_BONGOCI:
     OUTPUT "BUILD" "./bongoci"
-    CMD "go build -o ./bongoci ./cmd/bongoci"
+    CMD "go build -o ./bongoci ./cmd/ci"
 
 TEST:
     OUTPUT "RESULT" "./coverage.out"
-    CMD "go test -coverprofile=coverage.out pkg/..."
+    CMD "go test -coverprofile=./coverage.out ./pkg/..."
