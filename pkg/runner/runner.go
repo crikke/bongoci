@@ -83,7 +83,7 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 	var cacheErr error
 
 	if opts.UseGitHubActionsCache {
-		solveOpt, cacheErr = withGitHubActionsCache(ctx, solveOpt)
+		solveOpt, cacheErr = withGitHubActionsCache(solveOpt)
 		if cacheErr != nil {
 			return cacheErr
 		}
@@ -103,8 +103,8 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 	return CopyOutputs(tmpDir, outputs)
 }
 
-func withGitHubActionsCache(ctx context.Context, opt bkclient.SolveOpt) (bkclient.SolveOpt, error) {
-
+func withGitHubActionsCache(opt bkclient.SolveOpt) (bkclient.SolveOpt, error) {
+	slog.Info("using GitHub Actions cache")
 	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
 		Type: "gha",
 	})
@@ -122,6 +122,7 @@ func withGitHubActionsCache(ctx context.Context, opt bkclient.SolveOpt) (bkclien
 
 // https://github.com/moby/buildkit#export-cache
 func withRegistryCacheOpt(opt bkclient.SolveOpt, cacheFrom string, insecure bool) (bkclient.SolveOpt, error) {
+	slog.Info("using registry cache", "ref", cacheFrom, "insecure", insecure)
 	if cacheFrom == "" {
 		return opt, nil
 	}
