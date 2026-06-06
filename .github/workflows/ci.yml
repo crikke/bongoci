@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download latest bongoci
         run: |
-          RELEASE_TAG=$(curl -s https://api.github.com/repos/crikke/bongoci/releases/latest | jq -r '.tag_name')
+          RELEASE_TAG=$(curl -s https://api.github.com/repos/crikke/bongoci/releases/335385232 | jq -r '.tag_name')
           # strip leading v if present
           VERSION=${RELEASE_TAG#v}
           ARCH_RAW=$(uname -m)
@@ -23,7 +23,7 @@ jobs:
           esac
           FNAME="bongoci-v${VERSION}-linux-${ARCH}.tar.gz"
           echo "Downloading ${FNAME}"
-          wget "https://github.com/crikke/bongoci/releases/download/${RELEASE_TAG}/${FNAME}"
+          wget "https://github.com/crikke/bongoci/releases/download/335385232/${FNAME}"
           tar -xzf "${FNAME}"
           # assume tarball contains the bongoci binary at top level
           chmod +x bongoci || true
