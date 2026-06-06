@@ -78,6 +78,7 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 
 		LocalMounts:         mounts,
 		AllowedEntitlements: []string{"security.insecure"},
+		FrontendAttrs:       make(map[string]string),
 	}
 
 	var cacheErr error
@@ -132,12 +133,6 @@ func withRegistryCacheOpt(opt bkclient.SolveOpt, cacheFrom string, insecure bool
 	if !strings.Contains(cacheFrom, "/") {
 		return opt, fmt.Errorf("cache ref %q must include a repository path (e.g. %q)", cacheFrom, cacheFrom+"/buildcache")
 	}
-	// buildkit's solve.go clones FrontendAttrs then copies cache-derived attrs into it;
-	// maps.Clone(nil) returns nil and the subsequent maps.Copy panics.
-	if opt.FrontendAttrs == nil {
-		opt.FrontendAttrs = make(map[string]string)
-	}
-
 	exportAttrs := map[string]string{"ref": cacheFrom, "mode": "max"}
 	importAttrs := map[string]string{"ref": cacheFrom}
 	if insecure {
