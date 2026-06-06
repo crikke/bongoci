@@ -7,7 +7,7 @@ import (
 )
 
 func TestWithCacheOpt_empty(t *testing.T) {
-	opt, err := withCacheOpt(bkclient.SolveOpt{}, "", false)
+	opt, err := withRegistryCacheOpt(bkclient.SolveOpt{}, "", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -17,7 +17,7 @@ func TestWithCacheOpt_empty(t *testing.T) {
 }
 
 func TestWithCacheOpt_withRef(t *testing.T) {
-	opt, err := withCacheOpt(bkclient.SolveOpt{}, "myregistry/cache", false)
+	opt, err := withRegistryCacheOpt(bkclient.SolveOpt{}, "myregistry/cache", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -36,7 +36,7 @@ func TestWithCacheOpt_withRef(t *testing.T) {
 func TestWithCacheOpt_frontendAttrsNotNil(t *testing.T) {
 	// buildkit's solve.go does maps.Clone(opt.FrontendAttrs) then maps.Copy into it;
 	// if FrontendAttrs is nil the clone is nil and Copy panics when CacheImports are set.
-	opt, err := withCacheOpt(bkclient.SolveOpt{}, "localhost:5000/cache", false)
+	opt, err := withRegistryCacheOpt(bkclient.SolveOpt{}, "localhost:5000/cache", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestWithCacheOpt_appendsToExisting(t *testing.T) {
 	opt := bkclient.SolveOpt{
 		CacheImports: []bkclient.CacheOptionsEntry{existing},
 	}
-	opt, err := withCacheOpt(opt, "myregistry/cache", false)
+	opt, err := withRegistryCacheOpt(opt, "myregistry/cache", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestWithCacheOpt_appendsToExisting(t *testing.T) {
 
 func TestWithCacheOpt_rejectsRefWithoutRepoPath(t *testing.T) {
 	for _, ref := range []string{"localhost:5000", "registry.example.com", "myregistry:8080"} {
-		_, err := withCacheOpt(bkclient.SolveOpt{}, ref, false)
+		_, err := withRegistryCacheOpt(bkclient.SolveOpt{}, ref, false)
 		if err == nil {
 			t.Errorf("ref %q: expected error for missing repository path, got nil", ref)
 		}
@@ -78,7 +78,7 @@ func TestWithCacheOpt_rejectsRefWithoutRepoPath(t *testing.T) {
 }
 
 func TestWithCacheOpt_insecureSetsAttrOnBoth(t *testing.T) {
-	opt, err := withCacheOpt(bkclient.SolveOpt{}, "host.docker.internal:5000/buildcache", true)
+	opt, err := withRegistryCacheOpt(bkclient.SolveOpt{}, "host.docker.internal:5000/buildcache", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestWithCacheOpt_insecureSetsAttrOnBoth(t *testing.T) {
 }
 
 func TestWithCacheOpt_secureHasNoInsecureAttr(t *testing.T) {
-	opt, err := withCacheOpt(bkclient.SolveOpt{}, "myregistry/cache", false)
+	opt, err := withRegistryCacheOpt(bkclient.SolveOpt{}, "myregistry/cache", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

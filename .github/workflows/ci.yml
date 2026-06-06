@@ -19,7 +19,7 @@ jobs:
       - name: Build bongoci from source
         run: go build -o ./bongoci ./cmd/ci
       - name: Build, test and package with bongoci
-        run: ./bongoci run TEST BUILD_BONGOCI       
+        run: ./bongoci run --github-actions-cache=true TEST BUILD_BONGOCI       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

@@ -25,6 +25,7 @@ func newRunCmd() *cobra.Command {
 		cacheInsecure         bool
 		buildkitImage         string
 		buildahImage          string
+		isGithubActionsCache  bool
 	)
 
 	cmd := &cobra.Command{
@@ -32,7 +33,7 @@ func newRunCmd() *cobra.Command {
 		Short: "Run one or more tasks from build.bongo",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTasks(args, useHostBuildkitDaemon, cacheFrom, cacheInsecure, buildkitImage, buildahImage)
+			return runTasks(args, useHostBuildkitDaemon, cacheFrom, cacheInsecure, buildkitImage, buildahImage, isGithubActionsCache)
 		},
 	}
 
@@ -41,11 +42,11 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&cacheInsecure, "cache-insecure", false, "allow plain-HTTP registry for cache (needed for local registries)")
 	cmd.Flags().StringVar(&buildkitImage, "buildkit-image", "docker.io/moby/buildkit:v0.30.0", "use a different buildkit image")
 	cmd.Flags().StringVar(&buildahImage, "buildah-image", "quay.io/buildah/stable:v1.43.1", "use a different buildah image")
-
+	cmd.Flags().BoolVar(&isGithubActionsCache, "github-actions-cache", false, "use GitHub Actions cache")
 	return cmd
 }
 
-func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, cacheInsecure bool, buildkitImage, buildahImage string) error {
+func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, cacheInsecure bool, buildkitImage, buildahImage string, isGithubActionsCache bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("could not determine working directory: %w", err)
@@ -83,7 +84,7 @@ func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, 
 
 	slog.Debug("buildkit host", "host", host)
 
-	opts := runner.RunOptions{Host: host, CacheFrom: cacheFrom, InsecureCache: cacheInsecure}
+	opts := runner.RunOptions{Host: host, RegistryCacheRef: cacheFrom, InsecureCache: cacheInsecure, UseGitHubActionsCache: isGithubActionsCache}
 
 	for _, taskName := range taskNames {
 		if _, ok := m.Tasks[taskName]; !ok {
@@ -119,7 +120,7 @@ func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, 
 
 		taskOpts := opts
 		if cacheFrom != "" {
-			taskOpts.CacheFrom = cacheFrom + ":" + taskName
+			taskOpts.RegistryCacheRef = cacheFrom + ":" + taskName
 		}
 
 		slog.Info("running task", "task", taskName)

@@ -26,9 +26,10 @@ type ExportedOutput struct {
 
 // RunOptions configures a Run call.
 type RunOptions struct {
-	Host          string
-	CacheFrom     string // registry ref for cache import; empty = disabled
-	InsecureCache bool   // allow plain-HTTP registry for cache (needed for local registries)
+	Host                  string
+	RegistryCacheRef      string // registry ref for cache import; empty = disabled
+	InsecureCache         bool   // allow plain-HTTP registry for cache (needed for local registries)
+	UseGitHubActionsCache bool   // use GitHub Actions cache
 }
 
 // localMounts converts a map of name→hostPath into a map of name→fsutil.FS
@@ -80,9 +81,19 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 	}
 
 	var cacheErr error
-	solveOpt, cacheErr = withCacheOpt(solveOpt, opts.CacheFrom, opts.InsecureCache)
-	if cacheErr != nil {
-		return cacheErr
+
+	if opts.UseGitHubActionsCache {
+		solveOpt, cacheErr = withGitHubActionsCache(ctx, solveOpt)
+		if cacheErr != nil {
+			return cacheErr
+		}
+	}
+
+	if opts.RegistryCacheRef != "" {
+		solveOpt, cacheErr = withRegistryCacheOpt(solveOpt, opts.RegistryCacheRef, opts.InsecureCache)
+		if cacheErr != nil {
+			return cacheErr
+		}
 	}
 
 	if err := solve(ctx, c, result, solveOpt); err != nil {
@@ -92,8 +103,25 @@ func solveExec(ctx context.Context, c *bkclient.Client, opts RunOptions, result 
 	return CopyOutputs(tmpDir, outputs)
 }
 
+func withGitHubActionsCache(ctx context.Context, opt bkclient.SolveOpt) (bkclient.SolveOpt, error) {
+
+	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
+		Type: "gha",
+	})
+
+	exportAttrs := map[string]string{"mode": "max"}
+
+	opt.CacheExports = append(opt.CacheExports, bkclient.CacheOptionsEntry{
+		Type:  "gha",
+		Attrs: exportAttrs,
+	})
+
+	return opt, nil
+
+}
+
 // https://github.com/moby/buildkit#export-cache
-func withCacheOpt(opt bkclient.SolveOpt, cacheFrom string, insecure bool) (bkclient.SolveOpt, error) {
+func withRegistryCacheOpt(opt bkclient.SolveOpt, cacheFrom string, insecure bool) (bkclient.SolveOpt, error) {
 	if cacheFrom == "" {
 		return opt, nil
 	}
