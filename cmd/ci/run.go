@@ -117,8 +117,13 @@ func runTasks(taskNames []string, useHostBuildkitDaemon bool, cacheFrom string, 
 			}
 		}
 
+		taskOpts := opts
+		if cacheFrom != "" {
+			taskOpts.CacheFrom = cacheFrom + ":" + taskName
+		}
+
 		slog.Info("running task", "task", taskName)
-		if err := runner.Run(ctx, opts, result, taskOutputs); err != nil {
+		if err := runner.Run(ctx, taskOpts, result, taskOutputs); err != nil {
 			return fmt.Errorf("task %q failed: %w", taskName, err)
 		}
 	}
