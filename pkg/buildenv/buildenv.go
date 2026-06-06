@@ -1,8 +1,11 @@
 package buildenv
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"strconv"
@@ -92,8 +95,9 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 	slog.Debug("waiting for buildkitd", "host", socketHost)
 
 	if err := waitForBuildkitd(ctx, socketHost); err != nil {
+		logs := fetchContainerLogs(resp.ID, cli)
 		teardown(resp.ID, true)
-		return nil, fmt.Errorf("wait for buildkitd: %w", err)
+		return nil, fmt.Errorf("wait for buildkitd: %w\nbuildkitd logs:\n%s", err, logs)
 	}
 	slog.Debug("buildkitd ready", "host", socketHost)
 
@@ -114,6 +118,32 @@ func (e *Environment) Close() {
 	os.RemoveAll(e.tmpDir)
 }
 
+func fetchContainerLogs(containerID string, cli *dockerclient.Client) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	r, err := cli.ContainerLogs(ctx, containerID, dockerclient.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	if err != nil {
+		return "(could not fetch logs: " + err.Error() + ")"
+	}
+	defer r.Close()
+	// Docker log stream: 8-byte header (1 byte type, 3 padding, 4 byte size) + payload per frame.
+	var buf bytes.Buffer
+	hdr := make([]byte, 8)
+	for {
+		if _, err := io.ReadFull(r, hdr); err != nil {
+			break
+		}
+		size := binary.BigEndian.Uint32(hdr[4:])
+		if _, err := io.CopyN(&buf, r, int64(size)); err != nil {
+			break
+		}
+	}
+	return buf.String()
+}
+
 func waitForBuildkitd(ctx context.Context, host string) error {
 	c, err := bkclient.New(ctx, host)
 	if err != nil {
@@ -121,7 +151,7 @@ func waitForBuildkitd(ctx context.Context, host string) error {
 	}
 	defer c.Close()
 
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(30 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		if _, err := c.Info(ctx); err == nil {
