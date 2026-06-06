@@ -73,7 +73,6 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 			Cmd: []string{
 				"--group", strconv.Itoa(os.Getgid()),
 				"--allow-insecure-entitlement", "security.insecure",
-				"--oci-worker-no-process-sandbox",
 			},
 		},
 		HostConfig: &container.HostConfig{
@@ -152,7 +151,7 @@ func waitForBuildkitd(ctx context.Context, host string) error {
 	}
 	defer c.Close()
 
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(30 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		if _, err := c.Info(ctx); err == nil {
