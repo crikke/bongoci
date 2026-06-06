@@ -245,6 +245,7 @@ func compileCmdTask(base llb.State, task *manifest.Task, contextMount llb.RunOpt
 		llb.Dir(absPath),
 	}
 	if !task.Cache {
+		slog.Info("ignoring cache for task", "task", task.Name)
 		opts = append(opts, llb.IgnoreCache)
 	}
 	opts = append(opts, depMounts...)

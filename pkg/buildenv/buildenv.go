@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -20,7 +19,6 @@ type Environment struct {
 	BuildkitHost string
 
 	dockerClient *dockerclient.Client
-	networkID    string
 	buildkitID   string
 	tmpDir       string
 }
@@ -43,17 +41,6 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 		return nil, fmt.Errorf("docker client: %w", err)
 	}
 
-	networkName := "ci-build-" + filepath.Base(tmpDir)
-	netResult, err := cli.NetworkCreate(ctx, networkName, dockerclient.NetworkCreateOptions{
-		Driver: "bridge", Internal: true,
-	})
-	if err != nil {
-		cli.Close()
-		os.RemoveAll(tmpDir)
-		return nil, fmt.Errorf("create docker network: %w", err)
-	}
-	networkID := netResult.ID
-
 	teardown := func(containerID string, started bool) {
 		if containerID != "" {
 			if started {
@@ -62,7 +49,6 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 			}
 			_, _ = cli.ContainerRemove(context.Background(), containerID, dockerclient.ContainerRemoveOptions{Force: true})
 		}
-		_, _ = cli.NetworkRemove(context.Background(), networkID, dockerclient.NetworkRemoveOptions{})
 		cli.Close()
 		os.RemoveAll(tmpDir)
 	}
@@ -114,7 +100,6 @@ func Start(ctx context.Context, img string) (*Environment, error) {
 	return &Environment{
 		BuildkitHost: socketHost,
 		dockerClient: cli,
-		networkID:    networkID,
 		buildkitID:   resp.ID,
 		tmpDir:       tmpDir,
 	}, nil
@@ -124,9 +109,6 @@ func (e *Environment) Close() {
 	stopTimeout := 5
 	if _, err := e.dockerClient.ContainerStop(context.Background(), e.buildkitID, dockerclient.ContainerStopOptions{Timeout: &stopTimeout}); err != nil {
 		slog.Warn("stop buildkitd container", "error", err)
-	}
-	if _, err := e.dockerClient.NetworkRemove(context.Background(), e.networkID, dockerclient.NetworkRemoveOptions{}); err != nil {
-		slog.Warn("remove docker network", "error", err)
 	}
 	e.dockerClient.Close()
 	os.RemoveAll(e.tmpDir)
