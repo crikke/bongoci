@@ -110,8 +110,21 @@ func withGitHubActionsCache(opt bkclient.SolveOpt) (bkclient.SolveOpt, error) {
 		Type: "gha",
 	})
 
-	exportAttrs := map[string]string{"mode": "max"}
+	attrs := map[string]string{
+		"token":  os.Getenv("ACTIONS_RUNTIME_TOKEN"),
+		"url":    os.Getenv("ACTIONS_CACHE_URL"),
+		"url_v2": os.Getenv("ACTIONS_CACHE_SERVICE_V2"),
+	}
 
+	exportAttrs := map[string]string{"mode": "max"}
+	for k, v := range attrs {
+		exportAttrs[k] = v
+	}
+
+	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
+		Type:  "gha",
+		Attrs: attrs,
+	})
 	opt.CacheExports = append(opt.CacheExports, bkclient.CacheOptionsEntry{
 		Type:  "gha",
 		Attrs: exportAttrs,
