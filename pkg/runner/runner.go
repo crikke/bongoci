@@ -110,11 +110,13 @@ func withGitHubActionsCache(opt bkclient.SolveOpt) (bkclient.SolveOpt, error) {
 	opt.CacheImports = append(opt.CacheImports, bkclient.CacheOptionsEntry{
 		Type: "gha",
 	})
+	cacheURL := os.Getenv("ACTIONS_CACHE_URL")
+	if cacheURL == "" {
+		cacheURL = os.Getenv("ACTIONS_RESULTS_URL")
+	}
 	attrs := map[string]string{
 		"token": os.Getenv("ACTIONS_RUNTIME_TOKEN"),
-	}
-	if v := os.Getenv("ACTIONS_CACHE_URL"); v != "" {
-		attrs["url"] = v
+		"url":   cacheURL,
 	}
 	if v := os.Getenv("ACTIONS_RESULTS_URL"); v != "" {
 		attrs["url_v2"] = v
