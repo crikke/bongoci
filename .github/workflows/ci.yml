@@ -23,7 +23,7 @@ jobs:
           esac
           FNAME="bongoci-v${VERSION}-linux-${ARCH}.tar.gz"
           echo "Downloading ${FNAME}"
-          wget "https://github.com/crikke/bongoci/releases/download/335385232/${FNAME}"
+          wget "https://github.com/crikke/bongoci/releases/download/${RELEASE_TAG}/${FNAME}"
           tar -xzf "${FNAME}"
           # assume tarball contains the bongoci binary at top level
           chmod +x bongoci || true
