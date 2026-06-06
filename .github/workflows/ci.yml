@@ -1,9 +1,12 @@
+# This workflow builds the bongoci binary then run the TEST and BUILD_BONGOCI tasks from build.bongo.
+# Finally, it uploads the generated artifacts.
+# Basically, it builds bongoci twice, first using standard go build and then using itself.
 name: CI
 
 on:
   push:
     branches:
-      - ci-pipeline2
+      - master
 
 jobs:
   build:
